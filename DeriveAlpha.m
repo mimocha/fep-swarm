@@ -1,5 +1,11 @@
 % Sensory Gradient function
-% Returns [2,3,N] matrix
+% Calculate the sensory gradient for each cell
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: S
+% 	scalar	: N
+% Output: 
+% 	[2,3,N]	: grad_S
 function grad_S = DeriveAlpha (psi_x, S, N)
 	% [X,Y] are [j,i] matrices
 	X = repmat(psi_x(1,:), [N,1]);

@@ -5,13 +5,13 @@
 %	[2,N]	: psi_x | cell coordinates
 %	[3,N]	: psi_y | cell chemical signals
 % Output:
-%	{[P,P,3], [P,P,3], [P,P,3]} : sig_maps | signal heatmap for each signal type
+%	{[P*P,1], [P*P,1], [P*P,1]} : sig_maps | signal heatmap for each signal type
 function sig_maps = Heatmap (X, Y, psi_x, psi_y)
 	% Distance from each cell to each reference point in each dimensions
 	x_diff = repmat(psi_x(1,:), numel(X), 1) - X(:);
 	y_diff = repmat(psi_x(2,:), numel(Y), 1) - Y(:);
 	
-	% Distance function (exponential decay of euclidean distance)
+	% Distance function (exponential decay of squared euclidean distance)
 	k = 2;
 	euc_dist = x_diff.^2 + y_diff.^2;
 	dist_decay = exp(-k .* euc_dist);

@@ -2,15 +2,24 @@
 clear
 clc
 
+% Drawing interval (Number of sim step between drawing)
+drawInt = 10;
+% Axis display range
+axRange = 5;
+% Axis Lock? (Locks center of axis to cell cluster center)
+axLock = true;
+% Heatmap Grid Spacing
+hmSpace = 0.1;
+
 % Number of cells
-N = 16;
+N = 30;
 
 % Time step size
-dt = 0.01;
-tLimit = 10;
+dt = 0.001;
+tLimit = 30;
+
 
 %% Cell properties
-% Generate N random cells
 
 % Intracellular belief prior
 prior_y = eye(3);
@@ -19,47 +28,51 @@ prior_a =  [1 1 0; ...
 			1 1 1; ...
 			0 1 1];
 
-% [3,1] vector | Beliefs
+% ======================== [3,1] vector | Beliefs ========================= %
 % Diverges to infinity if sum of any column is greater than 1
 mu = softmax(randn(3,N));
 
-% [2,1] vector | Cell position
+% ====================== [2,1] vector | Cell position ====================== %
 psi_x = randn(2,N);
 
-% [3,1] vector | Cell secretion
-psi_y = softmax(mu);
+% ==================== [3,1] vector | Cell secretion ==================== %
+psi_y = zeros(3,N);
 
+% ==================== Sensor ==================== %
 % [3,1] vector | Intracellular sensor
 s_y = zeros(3,N); % Init values doesn't matter
 % [3,1] vector | Extracellular sensor
 s_a = zeros(3,N); % Init values doesn't matter
 
+% ==================== Prediction Error ==================== %
 % [3,1] vector | Intracellular prediction error
 epsilon_y = zeros(3,N); % Init values doesn't matter
 % [3,1] vector | Extracellular prediction error
 epsilon_a = zeros(3,N); % Init values doesn't matter
 
+
 %% Heatmap Mesh Grid
-R = -3:0.05:3;
+R = -axRange:hmSpace:axRange;
 [X,Y] = meshgrid(R, R);
 
 % Heatmap function
+HMShape = @(hmap, X) reshape(hmap,size(X));
 sig_maps = Heatmap (X, Y, psi_x, psi_y);
-hmap1 = reshape(sig_maps{1}, size(X));
-hmap2 = reshape(sig_maps{2}, size(X));
-hmap3 = reshape(sig_maps{3}, size(X));
+hmap1 = HMShape(sig_maps{1},X);
+hmap2 = HMShape(sig_maps{2},X);
+hmap3 = HMShape(sig_maps{3},X);
 
-% Figure setup
+
+%% Figure setup
 figure(1)
+colormap jet
 cmap = mu';
-xmax_prev = 3;
-ymax_prev = 3;
 
 % Scatter Plot
 ax1 = subplot(2,2,1);
 hmain = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
-ht = title(sprintf("N: %d | Ready. Press key to begin.", N));
+ht = title(sprintf("N: %d | dt: %.3f | Ready. Press key to begin.", N, dt));
 grid on
 
 % Heatmap Mu 1
@@ -80,35 +93,33 @@ hmu3 = pcolor(X,Y,hmap3);
 title("\mu_3 (Blue)")
 grid on
 
+% Axis Tracking variables
+axT = axRange;
+axB = -axRange;
+axL = -axRange;
+axR = axRange;
+
 % Styling
-daspect(ax1, [1 1 1])
-daspect(ax2, [1 1 1])
-daspect(ax3, [1 1 1])
-daspect(ax4, [1 1 1])
-axis(ax1, [-xmax_prev xmax_prev -ymax_prev ymax_prev])
-axis(ax2, [-xmax_prev xmax_prev -ymax_prev ymax_prev])
-axis(ax3, [-xmax_prev xmax_prev -ymax_prev ymax_prev])
-axis(ax4, [-xmax_prev xmax_prev -ymax_prev ymax_prev])
-hmu1.EdgeAlpha = 0.1;
-hmu2.EdgeAlpha = 0.1;
-hmu3.EdgeAlpha = 0.1;
-ax2.CLim = [0 1.5];
-ax3.CLim = [0 1.5];
-ax4.CLim = [0 1.5];
+SetAll = @(H, propName, propVal) set(H, propName, propVal);
+SetAll([ax1,ax2,ax3,ax4], 'DataAspectRatio', [1 1 1])
+SetAll([ax1,ax2,ax3,ax4], 'XLim', [axL axR])
+SetAll([ax1,ax2,ax3,ax4], 'YLim', [axB axT])
+SetAll([ax1,ax2,ax3,ax4], 'CLim', [0 1])
+SetAll([hmu1,hmu2,hmu3], 'EdgeColor', 'None')
 
 
 %% Simulation loop
 
-fprintf("Ready. Press any key to begin.\n")
+fprintf("Ready.\n")
 pause
 
 for t = 1:tLimit/dt
+	%% Main Inference
 	% 1. Sensory Inputs
 	% Intracellular Sensor
 	s_y = psi_y;
 	% Extracellular Sensor
 	s_a = Alpha(psi_x, psi_y, N);
-	s_a = softmax(s_a);
 
 	% 2. Softmax Function
 	sigma_mu = softmax(mu);
@@ -117,11 +128,11 @@ for t = 1:tLimit/dt
 	epsilon_y = s_y - (prior_y * sigma_mu);
 	epsilon_a = s_a - (prior_a * sigma_mu);
 	
-	% 4. Update Position-Secretion
+	% 4.1 Update Secretion
 	da_y = -epsilon_y;
 	psi_y = psi_y + (dt .* da_y);
 	
-	% Chemical Gradients
+	% 4.2 Update Position
 	grad_S = DeriveAlpha(psi_x, s_a, N);
 	da_x = DxUpdate(eye(3), grad_S, epsilon_a, N);
 	psi_x = psi_x + (dt .* da_x);
@@ -131,82 +142,88 @@ for t = 1:tLimit/dt
 	d_mu = MuUpdate(eye(3), d_sigma, epsilon_a, N);
 	mu = mu + (dt .* d_mu);
 	
-	% Signal Mapping Function
-	sig_maps = Heatmap (X, Y, psi_x, psi_y);
-	hmap1 = reshape(sig_maps{1}, size(X));
-	hmap2 = reshape(sig_maps{2}, size(X));
-	hmap3 = reshape(sig_maps{3}, size(X));
+	% Draw on intervals only
+	if mod(t,drawInt) ~= 0
+		continue
+	end
 	
-	% Plot
+	%% Signal Mapping Function
+	sig_maps = Heatmap (X, Y, psi_x, psi_y);
+	hmap1 = HMShape(sig_maps{1},X);
+	hmap2 = HMShape(sig_maps{2},X);
+	hmap3 = HMShape(sig_maps{3},X);
+	
+	%% Plot
 	try
-		hmain.XData = psi_x(1,:);
-		hmain.YData = psi_x(2,:);
-		hmain.CData = mu';
-		ht.String = sprintf("N: %d | Time: %.2f", N, t*dt);
+		% Update Cell Scatter
+		SetAll(hmain, {'XData','YData','CData'}, {psi_x(1,:),psi_x(2,:),mu'})
+		ht.String = sprintf("N: %d | dt: %.3f | Time: %.3f", N, dt, t*dt);
 		
 		% Update Heatmaps
-		hmu1.CData = hmap1;
-		hmu2.CData = hmap2;
-		hmu3.CData = hmap3;
-		
-		% Update axis limit for visibility
-		xmax = ceil(max(abs(psi_x(1,:)))/5);
-		ymax = ceil(max(abs(psi_x(2,:)))/5);
-		if (xmax_prev ~= xmax) || (ymax_prev ~= ymax)
-			xmax_prev = xmax;
-			ymax_prev = ymax;
-			axis(ax1, [-xmax xmax -ymax ymax]*5)
-			axis(ax2, [-xmax xmax -ymax ymax]*5)
-			axis(ax3, [-xmax xmax -ymax ymax]*5)
-			axis(ax4, [-xmax xmax -ymax ymax]*5)
+		SetAll([hmu1;hmu2;hmu3], {'CData'}, {hmap1;hmap2;hmap3});
+
+		% Update cell center to be axis center
+		if axLock
+			psi_x = psi_x - mean(psi_x,2);
 		end
 		
 		drawnow
-	catch
-		break
-	end
-	
-	% Break if Mu becomes NaN
-	if any(isnan(mu),'all')
-		ht.String = sprintf("N: %d | Time: %.2f | Diverged!", N, t*dt);
-		fprintf("Mu diverged!\n")
-		disp(mu)
-		break
+	catch ME
+		warning("Drawing loop broken.")
+		rethrow(ME)
 	end
 end
-
 
 
 %% Functions
 
 % Distance function
+% Calculate the sensory input for each cell
+% Assuming distance function is squared Euclidean distance
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: psi_y
+% 	scalar	: N
+% Output: 
+% 	[3,N]	: s_a
 function s_a = Alpha (psi_x, psi_y, N)
-	% Default Euclidean distance assumption
-	% Returns [3,N] matrix
-	% Dimensions will mismatch step 4, position update
-	s_a = psi_y * (exp(-squareform(pdist(psi_x'))) - eye(N));
+	% Spatial decay constant -- See DEM.m
+	k = 2;
+	
+	if N > 1
+		d = pdist(psi_x', 'squaredeuclidean');
+		s_a = psi_y * (exp(-k * squareform(d)) - eye(N));
+	else
+		s_a = zeros(3,1);
+	end
 end
 
-% Gradient function
-% Returns [2,3,N] matrix
+% Sensory Gradient function
+% Calculate the sensory gradient for each cell
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: S
+% 	scalar	: N
+% Output: 
+% 	[2,3,N]	: grad_S
 function grad_S = DeriveAlpha (psi_x, S, N)
+	% [X,Y] are [j,i] matrices
 	X = repmat(psi_x(1,:), [N,1]);
 	Y = repmat(psi_x(2,:), [N,1]);
 	
-	% Partial Derivatives w.r.t. x/y
-	dg = squareform(pdist(psi_x')); % Euclidean distance | [N,N]
-	dx = -(X' - X) ./ dg; % -(x_i - x_j) ./ (sqrt(x^2 + y^2)) | [N,N]
-	dy = -(Y' - Y) ./ dg; % -(y_i - y_j) ./ (sqrt(x^2 + y^2)) | [N,N]
+	% Spatial decay constant -- See DEM.m
+	k = 2;
 	
-	% Set diagonals to zeros (normally NaNs because division by zeros)
-	dx(eye(N)==1) = 0;
-	dy(eye(N)==1) = 0;
+	% Partial Derivatives w.r.t. x/y
+	% Becareful of the shape of X,Y; the transpose order matters
+	dx = -2 .* k .* (X - X'); % -2 * k * (x_j - x_i) | [N,N]
+	dy = -2 .* k .* (Y - Y'); % -2 * k * (y_j - y_i) | [N,N]
 	
 	% Final partial derivative step
 	dSdx = S * dx; % [3,N] = [3,N] * [N,N]
 	dSdy = S * dy; % [3,N] = [3,N] * [N,N]
 	
-	% Gradient matrix: [x1, x2, x3; y1, y2, y3]
+	% Gradient matrix, [x x x ; y y y]
 	grad_S = zeros(2,3,N);
 	for i = 1:N
 		grad_S(1,:,i) = dSdx(:,i)';
@@ -279,21 +296,31 @@ end
 %	[2,N]	: psi_x | cell coordinates
 %	[3,N]	: psi_y | cell chemical signals
 % Output:
-%	{[P,P,3], [P,P,3], [P,P,3]} : sig_maps | signal heatmap for each signal type
+%	{[P*P,1], [P*P,1], [P*P,1]} : sig_maps | signal heatmap for each signal type
 function sig_maps = Heatmap (X, Y, psi_x, psi_y)
 	% Distance from each cell to each reference point in each dimensions
 	x_diff = repmat(psi_x(1,:), numel(X), 1) - X(:);
 	y_diff = repmat(psi_x(2,:), numel(Y), 1) - Y(:);
 	
-	% Distance function (exponential decay of euclidean distance)
-	euc_dist = sqrt(x_diff.^2 + y_diff.^2);
-	dist_decay = exp(-euc_dist);
+	% Distance function (exponential decay of squared euclidean distance)
+	k = 2;
+	euc_dist = x_diff.^2 + y_diff.^2;
+	dist_decay = exp(-k .* euc_dist);
 	
 	% Decay of each signal across grid -- Signal Heatmap
-	mu1_decay = sum(dist_decay.*psi_y(1,:),2);
-	mu2_decay = sum(dist_decay.*psi_y(2,:),2);
-	mu3_decay = sum(dist_decay.*psi_y(3,:),2);
+	mu1 = sum(dist_decay.*psi_y(1,:),2);
+	mu2 = sum(dist_decay.*psi_y(2,:),2);
+	mu3 = sum(dist_decay.*psi_y(3,:),2);
+	
+	% Normalize to [0,1]
+	% Relative strength of all signals, scaled to the max signal strength or 1,
+	% whichever is higher.
+	mu_max = max( [mu1;mu2;mu3;1] ,[] ,'all');
+	norm = @(x,y) (x/y);
+	mu1 = norm(mu1,mu_max);
+	mu2 = norm(mu2,mu_max);
+	mu3 = norm(mu3,mu_max);
 	
 	% Output
-	sig_maps = {mu1_decay, mu2_decay, mu3_decay};
+	sig_maps = {mu1, mu2, mu3};
 end

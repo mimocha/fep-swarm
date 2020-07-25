@@ -2,7 +2,7 @@
 clear
 clc
 
-GIF = true;
+GIF = false;
 filename = 'Heatmap_07.gif';
 
 % Drawing interval
@@ -23,7 +23,6 @@ dt = 0.001;
 tLimit = 30;
 
 %% Cell properties
-% Generate N random cells
 
 % Intracellular belief prior
 prior_y = eye(3);
@@ -45,7 +44,7 @@ mu = zeros(3,N);
 for i = 1:N
 	mu(randi(3), i) = 1;
 end
-		
+
 % ====================== [2,1] vector | Cell position ====================== %
 psi_x = randn(2,N);
 
@@ -132,7 +131,6 @@ SetAll([ax1,ax2,ax3,ax4], 'CLim', [0 1])
 SetAll([hmu1,hmu2,hmu3], 'EdgeColor', 'None')
 
 
-
 %% Simulation loop
 
 fprintf("Ready.\n")
@@ -173,7 +171,7 @@ for t = 1:tLimit/dt
 	d_mu = MuUpdate(eye(3), d_sigma, epsilon_a, N);
 	mu = mu + (dt .* d_mu);
 	
-	
+	% Draw
 	if mod(t,drawInt) ~= 0
 		continue
 	end
@@ -194,7 +192,7 @@ for t = 1:tLimit/dt
 		% Update Heatmaps
 		SetAll([hmu1;hmu2;hmu3], {'CData'}, {hmap1;hmap2;hmap3});
 
-		% Update axis limit for visibility
+		% Update cell center to be axis center
 		if axLock
 			psi_x = psi_x - mean(psi_x,2);
 		end
@@ -204,9 +202,9 @@ for t = 1:tLimit/dt
 		if GIF
 			SaveGIF(fig, filename, 'WriteMode', 'Append');
 		end
-	catch
-		fprintf("Drawing loop broken\n")
-		break
+	catch ME
+		warning("Drawing loop broken.")
+		rethrow(ME)
 	end
 	
 % 	Debug("S_Y", s_y, "PSI_Y", psi_y, "EPSILON_Y", epsilon_y)
@@ -217,10 +215,15 @@ end
 %% Functions
 
 % Distance function
+% Calculate the sensory input for each cell
+% Assuming distance function is squared Euclidean distance
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: psi_y
+% 	scalar	: N
+% Output: 
+% 	[3,N]	: s_a
 function s_a = Alpha (psi_x, psi_y, N)
-	% Default Euclidean distance assumption
-	% Returns [3,N] matrix
-	
 	% Spatial decay constant -- See DEM.m
 	k = 2;
 	

@@ -2,15 +2,23 @@
 clear
 clc
 
+% Drawing interval (Number of sim step between drawing)
+drawInt = 10;
+% Axis display range
+axRange = 4;
+% Axis Lock? (Locks center of axis to cell cluster center)
+axLock = true;
+% Heatmap Grid Spacing
+hmSpace = 0.5;
+
 % Number of cells
-N = 25;
+N = 30;
 
 % Time step size
-dt = 0.01;
-tLimit = 10;
+dt = 0.001;
+tLimit = 30;
 
 %% Cell properties
-% Generate N random cells
 
 % Intracellular belief prior
 prior_y = eye(3);
@@ -19,27 +27,30 @@ prior_a =  [1 1 0; ...
 			1 1 1; ...
 			0 1 1];
 
-% [3,1] vector | Beliefs
+% ======================== [3,1] vector | Beliefs ========================= %
 % Diverges to infinity if sum of any column is greater than 1
 mu = softmax(randn(3,N));
 
-% [2,1] vector | Cell position
+% ====================== [2,1] vector | Cell position ====================== %
 psi_x = randn(2,N);
-% [3,1] vector | Cell secretion
-psi_y = softmax(mu);
 
+% ==================== [3,1] vector | Cell secretion ==================== %
+psi_y = zeros(3,N);
+
+% ==================== Sensor ==================== %
 % [3,1] vector | Intracellular sensor
 s_y = zeros(3,N); % Init values doesn't matter
 % [3,1] vector | Extracellular sensor
 s_a = zeros(3,N); % Init values doesn't matter
 
+% ==================== Prediction Error ==================== %
 % [3,1] vector | Intracellular prediction error
 epsilon_y = zeros(3,N); % Init values doesn't matter
 % [3,1] vector | Extracellular prediction error
 epsilon_a = zeros(3,N); % Init values doesn't matter
 
-% Quiver Plot Mesh Grid
-R = -25:1:25; % Range of gradient arrows to calculate
+%% Quiver Plot Mesh Grid
+R = -axRange:hmSpace:axRange;
 [X,Y] = meshgrid(R, R);
 
 % Generative model g(mu_i)
@@ -49,28 +60,41 @@ G = {repmat(reshape(prior_a*softmax([1,0,0]'), [1,1,3]), size(X)), ...
 
 [U,V] = GradientMap (G, X, Y, psi_x, psi_y);
 
+%% Figure setup
 figure(1)
 cmap = mu';
+
+% Scatter Plot
 h = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
 ht = title(sprintf("N: %d | Time: 0", N));
 hold on
-grid on
-daspect([1 1 1])
-xmax_prev = 10;
-ymax_prev = 10;
-axis([-xmax_prev xmax_prev -ymax_prev ymax_prev])
+
+% Quiver Plot
 hquiv1 = quiver(X,Y,U{1},V{1},'r');
 hquiv2 = quiver(X,Y,U{2},V{2},'g');
 hquiv3 = quiver(X,Y,U{3},V{3},'b');
 
+% Axis Tracking variables
+axT = axRange;
+axB = -axRange;
+axL = -axRange;
+axR = axRange;
+
+% Styling
+SetAll = @(H, propName, propVal) set(H, propName, propVal);
+grid on
+daspect([1 1 1])
+axis([axL axR axB axT])
+
 
 %% Simulation loop
 
-fprintf("Ready. Press any key to begin.\n")
+fprintf("Ready.\n")
 pause
 
 for t = 1:tLimit/dt
+	%% Main Inference
 	% 1. Sensory Inputs
 	% Intracellular Sensor
 	s_y = psi_y;
@@ -84,11 +108,11 @@ for t = 1:tLimit/dt
 	epsilon_y = s_y - (prior_y * sigma_mu);
 	epsilon_a = s_a - (prior_a * sigma_mu);
 	
-	% 4. Update Position-Secretion
+	% 4.1 Update Secretion
 	da_y = -epsilon_y;
 	psi_y = psi_y + (dt .* da_y);
 	
-	% Chemical Gradients
+	% 4.2 Update Position
 	grad_S = DeriveAlpha(psi_x, s_a, N);
 	da_x = DxUpdate(eye(3), grad_S, epsilon_a, N);
 	psi_x = psi_x + (dt .* da_x);
@@ -98,44 +122,32 @@ for t = 1:tLimit/dt
 	d_mu = MuUpdate(eye(3), d_sigma, epsilon_a, N);
 	mu = mu + (dt .* d_mu);
 	
-	% Gradient Mapping Function
+	% Draw on intervals only
+	if mod(t,drawInt) ~= 0
+		continue
+	end
+	
+	%% Gradient Mapping Function
 	[U,V] = GradientMap (G, X, Y, psi_x, psi_y);
 	
 	% Plot
 	try
-		h.XData = psi_x(1,:);
-		h.YData = psi_x(2,:);
-		h.CData = mu';
-		ht.String = sprintf("N: %d | Time: %.2f", N, t*dt);
+		% Update Cell Scatter
+		SetAll(h, {'XData','YData','CData'}, {psi_x(1,:),psi_x(2,:),mu'})
+		ht.String = sprintf("N: %d | dt: %.3f | Time: %.3f", N, dt, t*dt);
 		
 		% Update Quiver Plots
-		hquiv1.UData = U{1};
-		hquiv1.VData = V{1};
-		hquiv2.UData = U{2};
-		hquiv2.VData = V{2};
-		hquiv3.UData = U{3};
-		hquiv3.VData = V{3};
+		SetAll([hquiv1;hquiv2;hquiv3], {'UData','VData'}, {U{1},V{1};U{2},V{2};U{3},V{3}})
 		
-		% Update axis limit for visibility
-		xmax = ceil(max(abs(psi_x(1,:)))/5);
-		ymax = ceil(max(abs(psi_x(2,:)))/5);
-		if (xmax_prev ~= xmax) || (ymax_prev ~= ymax)
-			xmax_prev = xmax;
-			ymax_prev = ymax;
-			axis([-xmax xmax -ymax ymax]*5)
+		% Update cell center to be axis center
+		if axLock
+			psi_x = psi_x - mean(psi_x,2);
 		end
 		
 		drawnow
-	catch
-		break
-	end
-	
-	% Break if Mu becomes NaN
-	if any(isnan(mu),'all')
-		ht.String = sprintf("N: %d | Time: %.2f | Diverged!", N, t*dt);
-		fprintf("Mu diverged!\n")
-		disp(mu)
-		break
+	catch ME
+		warning("Drawing loop broken.")
+		rethrow(ME)
 	end
 end
 
@@ -144,33 +156,52 @@ end
 %% Functions
 
 % Distance function
+% Calculate the sensory input for each cell
+% Assuming distance function is squared Euclidean distance
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: psi_y
+% 	scalar	: N
+% Output: 
+% 	[3,N]	: s_a
 function s_a = Alpha (psi_x, psi_y, N)
-	% Default Euclidean distance assumption
-	% Returns [3,N] matrix
-	% Dimensions will mismatch step 4, position update
-	s_a = psi_y * (exp(-squareform(pdist(psi_x'))) - eye(N));
+	% Spatial decay constant -- See DEM.m
+	k = 2;
+	
+	if N > 1
+		d = pdist(psi_x', 'squaredeuclidean');
+		s_a = psi_y * (exp(-k * squareform(d)) - eye(N));
+	else
+		s_a = zeros(3,1);
+	end
 end
 
-% Gradient function
-% Returns [2,3,N] matrix
+% Sensory Gradient function
+% Calculate the sensory gradient for each cell
+% Input: 
+%	[2,N]	: psi_x
+% 	[3,N]	: S
+% 	scalar	: N
+% Output: 
+% 	[2,3,N]	: grad_S
 function grad_S = DeriveAlpha (psi_x, S, N)
+	% [X,Y] are [j,i] matrices
 	X = repmat(psi_x(1,:), [N,1]);
 	Y = repmat(psi_x(2,:), [N,1]);
 	
-	% Partial Derivatives w.r.t. x/y
-	dg = squareform(pdist(psi_x')); % Euclidean distance | [N,N]
-	dx = -(X' - X) ./ dg; % -(x_i - x_j) ./ (sqrt(x^2 + y^2)) | [N,N]
-	dy = -(Y' - Y) ./ dg; % -(y_i - y_j) ./ (sqrt(x^2 + y^2)) | [N,N]
+	% Spatial decay constant -- See DEM.m
+	k = 2;
 	
-	% Set diagonals to zeros (normally NaNs because division by zeros)
-	dx(eye(N)==1) = 0;
-	dy(eye(N)==1) = 0;
+	% Partial Derivatives w.r.t. x/y
+	% Becareful of the shape of X,Y; the transpose order matters
+	dx = -2 .* k .* (X - X'); % -2 * k * (x_j - x_i) | [N,N]
+	dy = -2 .* k .* (Y - Y'); % -2 * k * (y_j - y_i) | [N,N]
 	
 	% Final partial derivative step
 	dSdx = S * dx; % [3,N] = [3,N] * [N,N]
 	dSdy = S * dy; % [3,N] = [3,N] * [N,N]
 	
-	% Gradient matrix: [x1, x2, x3; y1, y2, y3]
+	% Gradient matrix, [x x x ; y y y]
 	grad_S = zeros(2,3,N);
 	for i = 1:N
 		grad_S(1,:,i) = dSdx(:,i)';
@@ -251,9 +282,10 @@ function [U, V] = GradientMap (G, X, Y, psi_x, psi_y)
 	x_diff = repmat(psi_x(1,:), numel(X), 1) - X(:);
 	y_diff = repmat(psi_x(2,:), numel(Y), 1) - Y(:);
 	
-	% Distance function (exponential decay of euclidean distance)
-	euc_dist = sqrt(x_diff.^2 + y_diff.^2);
-	dist_decay = exp(-euc_dist);
+	% Distance function (exponential decay of squared euclidean distance)
+	k = 2;
+	euc_dist = x_diff.^2 + y_diff.^2;
+	dist_decay = exp(-k .* euc_dist);
 	
 	% Decay of each signal across grid -- Signal Heatmap
 	mu1_decay = sum(dist_decay.*psi_y(1,:),2);
@@ -270,11 +302,8 @@ function [U, V] = GradientMap (G, X, Y, psi_x, psi_y)
 	epsilon_mu3 = s_alpha_grid - G{3}; % [P,P,3]
 	
 	% Derivative Alpha Calculations
-	d_alpha_x = -x_diff ./ euc_dist;
-	d_alpha_y = -y_diff ./ euc_dist;
-	% NaN Check
-	d_alpha_x(isnan(d_alpha_x)) = 0;
-	d_alpha_y(isnan(d_alpha_y)) = 0;
+	d_alpha_x = -2 .* k .* x_diff;
+	d_alpha_y = -2 .* k .* y_diff;
 	% Reshape
 	d_alpha_x = reshape(d_alpha_x, [size(X),size(d_alpha_x,2)]);
 	d_alpha_y = reshape(d_alpha_y, [size(Y),size(d_alpha_y,2)]);
