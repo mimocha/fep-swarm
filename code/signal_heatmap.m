@@ -5,19 +5,25 @@ clc
 % Drawing interval (Number of sim step between drawing)
 drawInt = 10;
 % Axis display range
-axRange = 5;
+axRange = 3;
 % Axis Lock? (Locks center of axis to cell cluster center)
 axLock = true;
 % Heatmap Grid Spacing
 hmSpace = 0.1;
 
-% Number of cells
-N = 30;
+% Number of cells / Starting States
+% Comment these 3 out, and set N directly to have randomly set starting mu
+Nr = 9; % Red
+Ng = 6; % Green
+Nb = 1; % Blue
+N = Nr + Ng + Nb;
 
 % Time step size
 dt = 0.001;
 tLimit = 30;
 
+% Anonymous dt Update function
+DtUpdate = @(x,dx) x + (dt.*dx);
 
 %% Cell properties
 
@@ -30,7 +36,12 @@ prior_a =  [1 1 0; ...
 
 % ======================== [3,1] vector | Beliefs ========================= %
 % Diverges to infinity if sum of any column is greater than 1
-mu = softmax(randn(3,N));
+try
+	mu = [repmat([1;0;0],1,Nr) , repmat([0;1;0],1,Ng) , repmat([0;0;1],1,Nb)];
+catch
+	mu = randn(3,N);
+end
+mu = softmax(mu);
 
 % ====================== [2,1] vector | Cell position ====================== %
 psi_x = randn(2,N);
@@ -74,6 +85,8 @@ hmain = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
 ht = title(sprintf("N: %d | dt: %.3f | Ready. Press key to begin.", N, dt));
 grid on
+hold on
+hquiv = quiver(psi_x(1,:), psi_x(2,:), zeros(1,N), zeros(1,N), 'k');
 
 % Heatmap Mu 1
 ax2 = subplot(2,2,2);
@@ -130,17 +143,17 @@ for t = 1:tLimit/dt
 	
 	% 4.1 Update Secretion
 	da_y = -epsilon_y;
-	psi_y = psi_y + (dt .* da_y);
+	psi_y = DtUpdate(psi_y, da_y);
 	
 	% 4.2 Update Position
 	grad_S = DeriveAlpha(psi_x, s_a, N);
 	da_x = DxUpdate(eye(3), grad_S, epsilon_a, N);
-	psi_x = psi_x + (dt .* da_x);
+	psi_x = DtUpdate(psi_x, da_x);
 	
 	% 5. Update Beliefs
 	d_sigma = DeriveSoftmax(mu, N);
 	d_mu = MuUpdate(eye(3), d_sigma, epsilon_a, N);
-	mu = mu + (dt .* d_mu);
+	mu = DtUpdate(mu, d_mu);
 	
 	% Draw on intervals only
 	if mod(t,drawInt) ~= 0
@@ -165,12 +178,19 @@ for t = 1:tLimit/dt
 		% Update cell center to be axis center
 		if axLock
 			psi_x = psi_x - mean(psi_x,2);
+			
+			% Position change relative to overall cluster movement
+			da_x = da_x - mean(da_x,2);
 		end
+		
+		% Update Cell Quiver
+		SetAll(hquiv, {'XData','YData','UData','VData'}, ...
+			{psi_x(1,:),psi_x(2,:),da_x(1,:),da_x(2,:)})
 		
 		drawnow
 	catch ME
-		warning("Drawing loop broken.")
-		rethrow(ME)
+		warning("Drawing loop broken. Error given: '%s'", ME.message)
+		break
 	end
 end
 
@@ -285,7 +305,7 @@ function d_mu = MuUpdate(prior, d_sigma, epsilon_a, N)
 	% Iterate through each cell
 	for i = 1:N
 		% [3,1]   = ([3,3] * [3,3,1])		 * [3,1]
-		d_mu(:,i) = (prior * d_sigma(:,:,i)) * epsilon_a(:,i);
+		d_mu(:,i) = -(prior * d_sigma(:,:,i)) * epsilon_a(:,i);
 	end
 end
 

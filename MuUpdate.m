@@ -11,6 +11,6 @@ function d_mu = MuUpdate(prior, d_sigma, epsilon, N)
 	
 	% Iterate through each cell
 	for i = 1:N
-		d_mu(:,i) = (prior * d_sigma(:,:,i)) * epsilon(:,i);
+		d_mu(:,i) = -(prior * d_sigma(:,:,i)) * epsilon(:,i);
 	end
 end

@@ -9,7 +9,7 @@ filename = 'Heatmap_07.gif';
 drawInt = 10;
 
 % Axis display range
-axRange = 5;
+axRange = 2;
 % Axis Lock?
 axLock = true;
 % Heatmap Grid Spacing
@@ -189,8 +189,8 @@ for t = 1:tLimit/dt
 			SaveGIF(fig, filename, 'WriteMode', 'Append');
 		end
 	catch ME
-		warning("Drawing loop broken.")
-		rethrow(ME)
+		warning("Drawing loop broken. Error given: '%s'", ME.message)
+		break
 	end
 	
 	Debug("Y", psi_y)
