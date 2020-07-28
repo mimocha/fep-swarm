@@ -1,5 +1,6 @@
 raw/
 result/
+reference/
 *.asv
 *.mp4
 *.gif

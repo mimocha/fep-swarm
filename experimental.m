@@ -2,13 +2,14 @@
 clear
 clc
 
-% Save GIF?
-GIF = true;
+GIF = false;
 filename = 'output.gif';
+
 % Drawing interval
-drawInt = 20;
+drawInt = 50;
+
 % Axis display range
-axRange = 3;
+axRange = 5;
 % Hard boundary?
 boundary = true;
 % Axis Lock?
@@ -16,64 +17,73 @@ axLock = false;
 % Heatmap Grid Spacing
 hmSpace = 0.1;
 
-% Number of cells / Starting States
-% Comment these 3 out, and set N directly to have randomly set starting mu
-Nr = 27; % Red
-Ng = 18; % Green
-Nb = 9; % Blue
+% Number of cells
+Nr = 9; % Red
+Ng = 6; % Green
+Nb = 3; % Blue
 N = Nr + Ng + Nb;
-% N = 40;
+% N = 14;
 
 % Time step size
-dt = 0.05;
-tLimit = 500;
+dt = 0.01;
+tLimit = 100;
 
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
 
-
 %% Cell properties
 % ======================== Prior ========================= %
 % Secretion Prior
-prior_y =  [1 0 0; ...
-			0 1 0; ...
-			0 0 1];
+priorSec =  [1 0 0; ...
+			 0 1 0; ...
+			 0 0 1];
 % Position Prior
-prior_a =  [1 1 0; ...
-			1 1 1; ...
-			0 1 1];
+priorPos =  [1 1 0; ...
+			 1 1 1; ...
+			 0 1 1];
 
 % ======================== Inference ========================= %
-try
-	mu = [repmat([1;0;0],1,Nr) , repmat([0;1;0],1,Ng) , repmat([0;0;1],1,Nb)];
-catch
-	mu = randn(3,N);
-end
-mu = softmax(mu);
+% Secretion Inference
+inferSec = [repmat([1;0;0],1,Nr) , repmat([0;1;0],1,Ng) , repmat([0;0;1],1,Nb)];
+inferSec = ArgMax(inferSec);
+% Position Inference
+inferPos = [repmat([1;1;0],1,Nr) , repmat([1;1;1],1,Ng) , repmat([0;1;1],1,Nb)];
+inferPos = ArgMax(inferPos);
 
 % ======================== Position ========================= %
-psi_x = rand(2,N) * axRange - axRange/2;
+pos = randn(2,N);
+
+% pos = [ cos(0:2*pi/N:2*pi) ; sin(0:2*pi/N:2*pi) ];
+% pos(:,end) = [];
 
 % x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 2.00;
-% x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1.00;
+% x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1.25;
 % x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0.50;
-% psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
-% psi_x = psi_x + randn(2,N)*0.3;
+% pos = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
+
+% pos = [-0.5, 0.5; 0, 0];
 
 % ======================== Secretion ========================= %
-psi_y = zeros(3,N);
+% sec = zeros(3,N);
+sec = ArgMax(inferSec);
 
 % ======================== Sensor ======================== %
 % Secretion Sensor
-s_y = zeros(3,N);
+senseSec = zeros(3,N);
 % Position Sensor
-s_a = zeros(3,N);
+sensePos = zeros(3,N);
 
 % ==================== Sensor Error ==================== %
 % Secretion Sensor Error
-epsilon_y = zeros(3,N);
+errSenSec = zeros(3,N);
 % Position Sensor Error
-epsilon_a = zeros(3,N);
+errSenPos = zeros(3,N);
+
+% ==================== Inference Error ==================== %
+% Secretion Inference Error
+errInfSec = zeros(3,N);
+% Position Inference Error
+errInfPos = zeros(3,N);
 
 
 %% Heatmap Mesh Grid
@@ -82,7 +92,7 @@ R = -axRange:hmSpace:axRange;
 
 % Heatmap function
 HMShape = @(hmap, X) reshape(hmap,size(X));
-sig_maps = Heatmap (X, Y, psi_x, psi_y);
+sig_maps = Heatmap (X, Y, pos, sec);
 hmap1 = HMShape(sig_maps{1},X);
 hmap2 = HMShape(sig_maps{2},X);
 hmap3 = HMShape(sig_maps{3},X);
@@ -92,34 +102,32 @@ hmap3 = HMShape(sig_maps{3},X);
 figure(1)
 clf
 colormap jet
-cmap = mu';
+cmap = inferSec';
 
 % Scatter Plot
 ax1 = subplot(2,2,1);
-hmain = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
+hmain = scatter(pos(1,:), pos(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
-ht = title(sprintf("N: %d | dt: %.2f | Ready", N, dt));
+ht = title(sprintf("N: %d | dt: %.3f | Ready. Press key to begin.", N, dt));
 grid on
 hold on
-xticks(-axRange:axRange)
-yticks(-axRange:axRange)
-hquiv = quiver(psi_x(1,:), psi_x(2,:), zeros(1,N), zeros(1,N), 'k');
+hquiv = quiver(pos(1,:), pos(2,:), zeros(1,N), zeros(1,N), 'k');
 
 % Heatmap Mu 1
 ax2 = subplot(2,2,2);
-hmu1 = pcolor(X,Y,hmap1);
+hphi1 = pcolor(X,Y,hmap1);
 title("\mu_1 (Red)")
 grid on
 
 % Heatmap Mu 2
 ax3 = subplot(2,2,3);
-hmu2 = pcolor(X,Y,hmap2);
+hphi2 = pcolor(X,Y,hmap2);
 title("\mu_2 (Green)")
 grid on
 
 % Heatmap Mu 3
 ax4 = subplot(2,2,4);
-hmu3 = pcolor(X,Y,hmap3);
+hphi3 = pcolor(X,Y,hmap3);
 title("\mu_3 (Blue)")
 grid on
 
@@ -135,7 +143,7 @@ SetAll([ax1,ax2,ax3,ax4], 'DataAspectRatio', [1 1 1])
 SetAll([ax1,ax2,ax3,ax4], 'XLim', [axL axR])
 SetAll([ax1,ax2,ax3,ax4], 'YLim', [axB axT])
 SetAll([ax1,ax2,ax3,ax4], 'CLim', [0 1])
-SetAll([hmu1,hmu2,hmu3], 'EdgeColor', 'None')
+SetAll([hphi1,hphi2,hphi3], 'EdgeColor', 'None')
 
 
 %% Simulation loop
@@ -152,73 +160,90 @@ end
 for t = 1:tLimit/dt
 	%% Main Inference
 	% 1. Sensory Inputs
-	% Intracellular Sensor
-	s_y = psi_y;
-	% Extracellular Sensor
-	s_a = Alpha(psi_x, psi_y, N);
+	senseSec = sec;
+	sensePos = SensorFunc(pos, sec, N);
 	
-	% 2. Softmax Function
-	sigma_mu = softmax(mu);
+	% 2. Generative Model
+	[~,idx] = max(inferSec);
+	genSec = (priorSec(:,idx) .* ArgMax(inferSec));
+	[~,idx] = max(inferPos);
+	genPos = (priorPos(:,idx) .* ArgMax(inferPos));
 	
-	% 3. Perception Error
-	[~,idx] = max(sigma_mu);
-	epsilon_y = s_y - (prior_y(:,idx) .* sigma_mu);
-	epsilon_a = s_a - (prior_a(:,idx) .* sigma_mu);
+	% 3.1 Perception Error
+	errSenSec = senseSec - genSec;
+	errSenPos = sensePos - genPos;
+	
+% 	% 3.2 Prediction Error ----- TODO: Prior?
+% 	[~,idx] = max(inferSec);
+% 	errInfSec = inferSec - priorSec(:,idx);
+% 	[~,idx] = max(inferPos);
+% 	errInfPos = inferPos - priorPos(:,idx);
+	
+% 	e_mu_phi = mu_phi - g_phi;
+% 	e_mu_chi = mu_chi - g_chi;
 	
 	% 4.1 Update Secretion
-	da_y = -epsilon_y;
-	psi_y = Integrate(psi_y, da_y);
+	dSec = -errSenSec;
+	sec = Integrate(sec, dSec);
 	
 	% 4.2 Update Position
-	grad_S = DeriveAlpha(psi_x, psi_y, N);
-	da_x = DxUpdate(eye(3), grad_S, epsilon_a, N);
-	psi_x = Integrate(psi_x, da_x);
+	dSenPos = DeriveSensorFunc(pos, sec, N);
+	dPos = DxUpdate(eye(3), dSenPos, errSenPos, N);
+	pos = Integrate(pos, dPos);
 	
 	% Boundary Condition
 	if boundary
-		psi_x( psi_x < -axRange ) = -axRange;
-		psi_x( psi_x > axRange ) = axRange;
+		pos( pos < -axRange ) = -axRange;
+		pos( pos > axRange ) = axRange;
 	end
 	
-	% 5. Update Beliefs
-	d_sigma = DeriveSoftmax(mu, N);
-	d_mu = MuUpdate(eye(3), d_sigma, epsilon_y, N);
-	mu = Integrate(mu, d_mu);
+% 	% 5.1 Update Secretion Inference
+% 	dGenPhi = DeriveGenModel(priorSec, inferSec, N);
+% 	dInferSec = MuUpdate(dGenPhi, errSenSec, N);
+% 	inferSec = Integrate(inferSec, dInferSec);
+% 	
+% 	% 5.2 Update Position Inference
+% 	dGenChi = DeriveGenModel(priorPos, inferPos, N);
+% 	dInferPos = MuUpdate(dGenChi, errSenPos, N);
+% 	inferPos = Integrate(inferPos, dInferPos);
 	
-	% Draw on intervals only
+% 	Debug("Position Error", errInfPos, "Secretion Error", errInfSec)
+	
+	% Draw
 	if mod(t,drawInt) ~= 0
 		continue
 	end
 	
+	
 	%% Signal Mapping Function
-	sig_maps = Heatmap (X, Y, psi_x, psi_y);
+	sig_maps = Heatmap (X, Y, pos, sec);
 	hmap1 = HMShape(sig_maps{1},X);
 	hmap2 = HMShape(sig_maps{2},X);
 	hmap3 = HMShape(sig_maps{3},X);
 	
 	%% Plot
 	try
-		% Update cell center to be axis center
-		if axLock
-			% Position change relative to overall cluster movement
-			psi_x = psi_x - mean(psi_x,2);
-			da_x = da_x - mean(da_x,2);
-		end
-		
 		% Update Cell Scatter
-		SetAll(hmain, {'XData','YData','CData'}, {psi_x(1,:),psi_x(2,:),mu'})
-		ht.String = sprintf("N: %d | dt: %.2f | Time: %.2f", N, dt, t*dt);
+		SetAll(hmain, {'XData','YData','CData'}, {pos(1,:),pos(2,:),inferSec'})
+		ht.String = sprintf("N: %d | dt: %.3f | Time: %.3f", N, dt, t*dt);
 		
 		% Update Heatmaps
-		SetAll([hmu1;hmu2;hmu3], {'CData'}, {hmap1;hmap2;hmap3});
+		SetAll([hphi1;hphi2;hphi3], {'CData'}, {hmap1;hmap2;hmap3});
+		
+		% Update cell center to be axis center
+		if axLock
+			pos = pos - mean(pos,2);
+			
+			% Position change relative to overall cluster movement
+			dPos = dPos - mean(dPos,2);
+		end
 		
 		% Update Cell Quiver
 		SetAll(hquiv, {'XData','YData','UData','VData'}, ...
-			{psi_x(1,:),psi_x(2,:),da_x(1,:),da_x(2,:)})
+			{pos(1,:),pos(2,:),dPos(1,:),dPos(2,:)})
 		
 		drawnow
 		
-		% Save GIF
 		if GIF
 			SaveGIF(fig, filename, 'WriteMode', 'Append');
 		end
@@ -229,7 +254,14 @@ for t = 1:tLimit/dt
 end
 
 
+
 %% Functions
+
+% Max function
+function x = ArgMax (x)
+% 	x = x ./ sum(x,1);
+	x = softmax(x);
+end
 
 % Distance function
 % Calculate the sensory input for each cell
@@ -240,13 +272,13 @@ end
 % 	scalar	: N
 % Output: 
 % 	[3,N]	: s_a
-function s_a = Alpha (psi_x, psi_y, N)
+function s_a = SensorFunc (chi, phi, N)
 	% Spatial decay constant -- See DEM.m
 	k = 2;
 	
 	if N > 1
-		d = pdist(psi_x', 'squaredeuclidean');
-		s_a = psi_y * (exp(-k * squareform(d)) - eye(N));
+		d = pdist(chi', 'squaredeuclidean');
+		s_a = phi * (exp(-k * squareform(d)) - eye(N));
 	else
 		s_a = zeros(3,1);
 	end
@@ -256,11 +288,11 @@ end
 % Calculate the sensory gradient for each cell
 % Input: 
 %	[2,N]	: psi_x
-% 	[3,N]	: psi_y
+% 	[3,N]	: S
 % 	scalar	: N
 % Output: 
 % 	[2,3,N]	: grad_S
-function grad_S = DeriveAlpha (psi_x, psi_y, N)
+function grad_S = DeriveSensorFunc (psi_x, psi_y, N)
 	% [X,Y] are [j,i] matrices
 	X = repmat(psi_x(1,:), [N,1]);
 	Y = repmat(psi_x(2,:), [N,1]);
@@ -320,32 +352,34 @@ end
 % 	scalar	: N
 % Output: 
 %	[3,3,N] : d_sigma
-function d_sigma = DeriveSoftmax(mu, N)
+function d_sigma = DeriveGenModel(prior, infer, N)
+	% Derivative of softmax
 	d_sigma = zeros(3,3,N);
-	
-	% Iterate through each cell
 	for i = 1:N
 		% [3,3,1]	   = [3,3]		   - ([3,1]  *  [1,3])
-		d_sigma(:,:,i) = diag(mu(:,i)) - (mu(:,i)*mu(:,i)');
+		d_sigma(:,:,i) = diag(infer(:,i)) - (infer(:,i)*infer(:,i)');
+		
+		% Times prior (dot product)
+		d_sigma(:,:,i) = prior * d_sigma(:,:,i);
 	end
 end
 
 % Mu Update Calculation function
 % Calculates the change to mu
 % Input: 
-%	[3,3]	: prior (identity matrix)
 % 	[3,3,N] : d_sigma
-% 	[3,N]	: epsilon
+% 	[3,N]	: epsilon_s
+% 	[3,N]	: epsilon_mu
 %	scalar	: N
 % Output: 
 % 	[3,N]	: d_mu
-function d_mu = MuUpdate(prior, d_sigma, epsilon_a, N)
+function d_mu = MuUpdate(d_sigma, epsilon_s, N)
 	d_mu = zeros(3,N);
 	
 	% Iterate through each cell
 	for i = 1:N
-		% [3,1]   = ([3,3] * [3,3,1])		 * [3,1]
-		d_mu(:,i) = -(prior * d_sigma(:,:,i)) * epsilon_a(:,i);
+		% [3,1]   = - [3,3,1] * [3,1]
+		d_mu(:,i) = - (d_sigma(:,:,i)) * epsilon_s(:,i);
 	end
 end
 
@@ -383,12 +417,4 @@ function sig_maps = Heatmap (X, Y, psi_x, psi_y)
 	
 	% Output
 	sig_maps = {mu1, mu2, mu3};
-end
-
-% GIF Exporting Function
-function SaveGIF (h, filename, mode, mode2)
-	frame = getframe(h);
-	im = frame2im(frame);
-	[imind,cm] = rgb2ind(im,256);
-	imwrite(imind,cm,filename,mode,mode2,'DelayTime',0);
 end

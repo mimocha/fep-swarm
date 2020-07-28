@@ -7,7 +7,11 @@ function d_sigma = DeriveSoftmax(mu, N)
 	d_sigma = zeros(3,3,N);
 	
 	% Iterate through each cell
+
 	for i = 1:N
 		d_sigma(:,:,i) = diag(mu(:,i)) - (mu(:,i)*mu(:,i)');
+		
+		% g'(mu) = P * sigma'(mu)
+% 		d_sigma(:,:,i) = prior * d_sigma(:,:,i);
 	end
 end

@@ -3,45 +3,46 @@ clear
 clc
 
 GIF = false;
-filename = 'heatmap-09.gif';
+filename = 'new-gradient-03.gif';
 
 % Drawing interval
-drawInt = 25;
-
+drawInt = 20;
 % Axis display range
-axRange = 2.5;
+axRange = 5;
+% Hard boundary?
+boundary = true;
 % Axis Lock?
-axLock = true;
+axLock = false;
 % Heatmap Grid Spacing
-hmSpace = 0.05;
+hmSpace = 0.1;
 
 % Number of cells
-Nr = 9; % Red
-Ng = 6; % Green
-Nb = 1; % Blue
-N = Nr + Ng + Nb;
-% N = 14;
+% Nr = 27; % Red
+% Ng = 18; % Green
+% Nb = 9; % Blue
+% N = Nr + Ng + Nb;
+N = 100;
 
 % Time step size
-dt = 0.001;
-tLimit = 50;
+dt = 0.05;
+tLimit = 1000;
 
 % Anonymous dt Update function
-DtUpdate = @(x,dx) x + (dt.*dx);
+Integrate = @(x,dx) x + (dt.*dx);
+
 
 %% Cell properties
-
-% Intracellular belief prior
-prior_y = eye(3);
-% Extracellular belief prior
+% ======================== Prior ========================= %
+% Secretion Prior
+prior_y =  [1 0 0; ...
+			0 1 0; ...
+			0 0 1];
+% Position Prior
 prior_a =  [1 1 0; ...
 			1 1 1; ...
 			0 1 1];
-% prior_a = prior_a * 0.1;
-% prior_a = randn(3);
 
-% ======================== [3,1] vector | Beliefs ========================= %
-% Diverges to infinity if sum of any column is greater than 1
+% ======================== Inference ========================= %
 try
 	mu = [repmat([1;0;0],1,Nr) , repmat([0;1;0],1,Ng) , repmat([0;0;1],1,Nb)];
 catch
@@ -49,35 +50,33 @@ catch
 end
 mu = softmax(mu);
 
-% ====================== [2,1] vector | Cell position ====================== %
-% psi_x = randn(2,N);
+% ======================== Position ========================= %
+psi_x = rand(2,N) * axRange - axRange/2;
 
-% psi_x = [ cos(0:2*pi/N:2*pi) ; sin(0:2*pi/N:2*pi) ];
+% psi_x = [ cos(0:2*pi/N:2*pi) ; sin(0:2*pi/N:2*pi) ] * 3;
 % psi_x(:,end) = [];
 
-x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 2.00;
-x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1.25;
-x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0.50;
-psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
+% x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 2.00;
+% x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1.00;
+% x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0.50;
+% psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
+% psi_x = psi_x + randn(2,N)*0.2;
 
-% psi_x = [-0.5, 0.5; 0, 0];
-
-% ==================== [3,1] vector | Cell secretion ==================== %
-% psi_y = randn(3,N); % Important to use RANDN and not RAND
-% psi_y = softmax(mu);
+% ======================== Secretion ========================= %
 psi_y = zeros(3,N);
+% psi_y = softmax(mu);
 
-% ==================== Sensor ==================== %
-% [3,1] vector | Intracellular sensor
-s_y = zeros(3,N); % Init values doesn't matter
-% [3,1] vector | Extracellular sensor
-s_a = zeros(3,N); % Init values doesn't matter
+% ======================== Sensor ======================== %
+% Secretion Sensor
+s_y = zeros(3,N);
+% Position Sensor
+s_a = zeros(3,N);
 
-% ==================== Prediction Error ==================== %
-% [3,1] vector | Intracellular prediction error
-epsilon_y = zeros(3,N); % Init values doesn't matter
-% [3,1] vector | Extracellular prediction error
-epsilon_a = zeros(3,N); % Init values doesn't matter
+% ==================== Sensor Error ==================== %
+% Secretion Sensor Error
+epsilon_y = zeros(3,N);
+% Position Sensor Error
+epsilon_a = zeros(3,N);
 
 
 %% Heatmap Mesh Grid
@@ -102,7 +101,7 @@ cmap = mu';
 ax1 = subplot(2,2,1);
 hmain = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
-ht = title(sprintf("N: %d | dt: %.3f | Ready. Press key to begin.", N, dt));
+ht = title(sprintf("N: %d | dt: %.3f | Ready", N, dt));
 grid on
 hold on
 hquiv = quiver(psi_x(1,:), psi_x(2,:), zeros(1,N), zeros(1,N), 'k');
@@ -163,28 +162,34 @@ for t = 1:tLimit/dt
 	sigma_mu = softmax(mu);
 	
 	% 3. Perception Error
-	epsilon_y = s_y - (prior_y * sigma_mu);
-	epsilon_a = s_a - (prior_a * sigma_mu);
+	[~,idx] = max(sigma_mu);
+	epsilon_y = s_y - (prior_y(:,idx) .* sigma_mu);
+	epsilon_a = s_a - (prior_a(:,idx) .* sigma_mu);
 	
 	% 4.1 Update Secretion
 	da_y = -epsilon_y;
-	psi_y = DtUpdate(psi_y, da_y);
+	psi_y = Integrate(psi_y, da_y);
 	
 	% 4.2 Update Position
-	grad_S = DeriveAlpha(psi_x, s_a, N);
+	grad_S = DeriveAlpha(psi_x, psi_y, N);
 	da_x = DxUpdate(eye(3), grad_S, epsilon_a, N);
-	psi_x = DtUpdate(psi_x, da_x);
+	psi_x = Integrate(psi_x, da_x);
+	
+	% Boundary Condition
+	if boundary
+		psi_x( psi_x < -axRange ) = -axRange;
+		psi_x( psi_x > axRange ) = axRange;
+	end
 	
 	% 5. Update Beliefs
 	d_sigma = DeriveSoftmax(mu, N);
 	d_mu = MuUpdate(eye(3), d_sigma, epsilon_y, N);
-	mu = DtUpdate(mu, d_mu);
-	
-	% Draw
+	mu = Integrate(mu, d_mu);
+
+	% Draw on intervals only
 	if mod(t,drawInt) ~= 0
 		continue
 	end
-	
 	
 	%% Signal Mapping Function
 	sig_maps = Heatmap (X, Y, psi_x, psi_y);
@@ -194,20 +199,19 @@ for t = 1:tLimit/dt
 	
 	%% Plot
 	try
+		% Update cell center to be axis center
+		if axLock
+			% Position change relative to overall cluster movement
+			psi_x = psi_x - mean(psi_x,2);
+			da_x = da_x - mean(da_x,2);
+		end
+		
 		% Update Cell Scatter
 		SetAll(hmain, {'XData','YData','CData'}, {psi_x(1,:),psi_x(2,:),mu'})
-		ht.String = sprintf("N: %d | dt: %.3f | Time: %.3f", N, dt, t*dt);
+		ht.String = sprintf("N: %d | dt: %.2f | Time: %.2f", N, dt, t*dt);
 		
 		% Update Heatmaps
 		SetAll([hmu1;hmu2;hmu3], {'CData'}, {hmap1;hmap2;hmap3});
-		
-		% Update cell center to be axis center
-		if axLock
-			psi_x = psi_x - mean(psi_x,2);
-			
-			% Position change relative to overall cluster movement
-			da_x = da_x - mean(da_x,2);
-		end
 		
 		% Update Cell Quiver
 		SetAll(hquiv, {'XData','YData','UData','VData'}, ...
@@ -215,6 +219,7 @@ for t = 1:tLimit/dt
 		
 		drawnow
 		
+		% Save GIF
 		if GIF
 			SaveGIF(fig, filename, 'WriteMode', 'Append');
 		end
@@ -222,10 +227,7 @@ for t = 1:tLimit/dt
 		warning("Drawing loop broken. Error given: '%s'", ME.message)
 		break
 	end
-	
-% 	Debug("S-ALPHA", s_a)
 end
-
 
 
 %% Functions
@@ -246,8 +248,6 @@ function s_a = Alpha (psi_x, psi_y, N)
 	if N > 1
 		d = pdist(psi_x', 'squaredeuclidean');
 		s_a = psi_y * (exp(-k * squareform(d)) - eye(N));
-		
-% 		Debug("psi_y", psi_y, "DiSt", (exp(-k * squareform(d)) - eye(N)), "S_A", s_a)
 	else
 		s_a = zeros(3,1);
 	end
