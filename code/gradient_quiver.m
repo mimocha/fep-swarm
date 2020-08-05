@@ -3,7 +3,7 @@ clear
 clc
 
 % Save GIF?
-GIF = true;
+GIF = false;
 filename = 'output.gif';
 % Drawing interval
 drawInt = 20;

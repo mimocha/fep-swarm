@@ -1,22 +1,24 @@
+function gradient = SensorGrad (pos, sec, C, N)
 % Sensory Gradient function
 % Calculate the sensory gradient for each cell
 % Input: 
-%	[2,N]	: psi_x
-% 	[3,N]	: psi_y
+%	[2,N]	: position
+% 	[C,N]	: secretion
+% 	scalar	: C
 % 	scalar	: N
 % Output: 
-% 	[2,3,N]	: grad_S
-function grad_S = DeriveAlpha (psi_x, psi_y, N)
+% 	[2,C,N]	: gradient
+
 	% [X,Y] are [j,i] matrices
-	X = repmat(psi_x(1,:), [N,1]);
-	Y = repmat(psi_x(2,:), [N,1]);
+	X = repmat(pos(1,:), [N,1]);
+	Y = repmat(pos(2,:), [N,1]);
 	
 	% Spatial decay constant -- See DEM.m
 	k = 2;
 	
 	% Pairwise Exponential Distance Decay Matrix
 	% (From normal S_Alpha calculations)
-	dd = pdist(psi_x', 'squaredeuclidean');
+	dd = pdist(pos', 'squaredeuclidean');
 	dd = exp(-k * squareform(dd)) - eye(N);
 	
 	% Partial Derivatives w.r.t. x/y
@@ -25,14 +27,14 @@ function grad_S = DeriveAlpha (psi_x, psi_y, N)
 	dy = Y - Y'; % (y_j - y_i) | [N,N]
 	
 	% Calculate Partial Derivative
-	% [3,N] = -2 .* k .* ([3,N] * ([N,N] .* [N,N]))
-	dSdx = -2 .* k .* psi_y * (dx .* dd); 
-	dSdy = -2 .* k .* psi_y * (dy .* dd);
+	% [3,N] = -2 .* k .* ([C,N] * ([N,N] .* [N,N]))
+	dSdx = -2 .* k .* sec * (dx .* dd); 
+	dSdy = -2 .* k .* sec * (dy .* dd);
 	
-	% Gradient matrix, [x x x ; y y y]
-	grad_S = zeros(2,3,N);
+	% Gradient matrix, [2,C,N]
+	gradient = zeros(2,C,N);
 	for i = 1:N
-		grad_S(1,:,i) = dSdx(:,i)';
-		grad_S(2,:,i) = dSdy(:,i)';
+		gradient(1,:,i) = dSdx(:,i)';
+		gradient(2,:,i) = dSdy(:,i)';
 	end
 end

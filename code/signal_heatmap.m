@@ -3,30 +3,30 @@ clear
 clc
 
 % Save GIF?
-GIF = true;
+GIF = false;
 filename = 'output.gif';
 % Drawing interval
 drawInt = 20;
 % Axis display range
-axRange = 3;
+axRange = 10;
 % Hard boundary?
 boundary = true;
 % Axis Lock?
 axLock = false;
 % Heatmap Grid Spacing
-hmSpace = 0.1;
+hmSpace = 0.5;
 
 % Number of cells / Starting States
 % Comment these 3 out, and set N directly to have randomly set starting mu
-Nr = 27; % Red
-Ng = 18; % Green
-Nb = 9; % Blue
-N = Nr + Ng + Nb;
-% N = 40;
+% Nr = 27; % Red
+% Ng = 18; % Green
+% Nb = 9; % Blue
+% N = Nr + Ng + Nb;
+N = 50;
 
 % Time step size
 dt = 0.05;
-tLimit = 500;
+tLimit = 1000;
 
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
