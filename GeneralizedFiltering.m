@@ -1,4 +1,4 @@
-%% Simulation Setup
+	%% Simulation Setup
 % Chris' code with Palacios' notations
 
 clear;

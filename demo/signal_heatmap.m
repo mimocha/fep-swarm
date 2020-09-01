@@ -242,3 +242,150 @@ for t = 1:tLimit/dt
 end
 
 
+
+
+%% Functions
+
+function omega = Noise(N)
+% Noise Generation Function
+	omega = sqrt(1/exp(16)) * randn([3,N]);
+end
+
+function s = DistSensor (pos, sig, N)
+% Distance Sensor function
+% Calculate the extracellular input for each cell
+% Assuming distance function is squared Euclidean distance
+% Input: 
+%	[2,N]	: pos : position
+% 	[3,N]	: sig : signal
+% 	scalar	: N   : cell count
+% Output: 
+% 	[3,N]	: sensor
+
+	k = 2; % Spatial decay constant -- See DEM.m from SPM12 toolkit
+	d = pdist(pos', 'squaredeuclidean');
+	s = sig * (exp(-k * squareform(d)) - eye(N));
+end
+
+function grad = SensorGrad (pos, sig, N)
+% Sensory Gradient function
+% Calculate the sensory gradient for each cell
+% Input: 
+%	[2,N]	: pos : cell position
+% 	[3,N]	: sig : cell signal
+% 	scalar	: N   : cell count
+% Output: 
+% 	[2,3,N]	: gradient
+
+	% [X,Y] are [j,i] matrices
+	X = repmat(pos(1,:), [N,1]);
+	Y = repmat(pos(2,:), [N,1]);
+	
+	% Pairwise Exponential Distance Decay Matrix
+	k = 2; % Spatial decay constant -- See DEM.m from spm12 toolkit
+	dd = pdist(pos', 'squaredeuclidean');
+	dd = exp(-k * squareform(dd)) - eye(N);
+	
+	% Partial Derivatives w.r.t. x/y
+	% Becareful of the shape of X,Y; the transpose order matters
+	dx = X - X'; % (x_j - x_i) | [N,N]
+	dy = Y - Y'; % (y_j - y_i) | [N,N]
+	
+	% Calculate Partial Derivative
+	% [3,N] = -2 .* k .* ([3,N] * ([N,N] .* [N,N]))
+	dsdx = -2 .* k .* sig * (dx .* dd); 
+	dsdy = -2 .* k .* sig * (dy .* dd);
+	
+	% Gradient matrix, [2,3,N]
+	grad = zeros(2,3,N);
+	for i = 1:N
+		grad(1,:,i) = dsdx(:,i)';
+		grad(2,:,i) = dsdy(:,i)';
+	end
+end
+
+function a_x = PositionUpdate (grad, error, N)
+% Position Update function
+% Input: 
+% 	[2,3,N] : grad  : sensory gradient
+% 	[3,N]	: error : extracellular error
+% Output: 
+% 	[3,N]	: a_x : Active state (cell movement)
+
+	a_x = zeros(2,N);
+	% For each cell
+	for i = 1:N
+		% [2,1]  = -[2,3,1] * [3,1]
+		a_x(:,i) = -grad(:,:,i) * error(:,i);
+	end
+end
+
+function d_mu = InternalStatesUpdate (p_x, p_y, eps_x, eps_y, s_mu, N)
+% Internal States Update function
+% Calculates the change to internal states
+% Input: 
+% 	[3,3]	: p_x   : extracellular parameters
+% 	[3,3]	: p_y   : intracellular parameters
+% 	[3,N]	: eps_x : prediction error
+% 	[3,N]	: eps_y : prediction error
+% 	[3,N]	: s_mu  : belief
+% 	scalar	: N     : cell count
+% Output: 
+% 	[3,N]	: d_mu  : internal states update
+	
+	% d_mu = -(Px + Py) * sigma'(mu) * (eps_x + eps_y)
+	error = eps_x + eps_y;
+	params = p_x + p_y;
+	d_mu = zeros(3,N);
+	for i = 1:N
+		% Inverse softmax
+		invSoftmax = (diag(s_mu(:,i)) - (s_mu(:,i)*s_mu(:,i)'));
+		d_mu(:,i) = - params * invSoftmax * error(:,i);
+	end
+end
+
+function sig_maps = Heatmap (X, Y, psi_x, psi_y)
+% Heatmap Calculations
+% Input:
+%	[P,P]	: X : x-coordinates of gradient vector arrows, [P,P] matrix
+%	[P,P]	: Y : y-coordinates of gradient vector arrows, [P,P] matrix
+%	[2,N]	: psi_x : cell positions
+%	[3,N]	: psi_y : cell signals
+% Output:
+%	{[P*P,1], [P*P,1], [P*P,1]} : sig_maps | signal heatmap for each signal type
+
+	% Distance from each cell to each reference point in each dimensions
+	x_diff = repmat(psi_x(1,:), numel(X), 1) - X(:);
+	y_diff = repmat(psi_x(2,:), numel(Y), 1) - Y(:);
+	
+	% Distance function (exponential decay of squared euclidean distance)
+	k = 2;
+	euc_dist = x_diff.^2 + y_diff.^2;
+	dist_decay = exp(-k .* euc_dist);
+	
+	% Decay of each signal across grid -- Signal Heatmap
+	mu1 = sum(dist_decay.*psi_y(1,:),2);
+	mu2 = sum(dist_decay.*psi_y(2,:),2);
+	mu3 = sum(dist_decay.*psi_y(3,:),2);
+	
+	% Normalize to [0,1]
+	% Relative strength of all signals, scaled to the max signal strength or 1,
+	% whichever is higher.
+	mu_max = max( [mu1;mu2;mu3;1] ,[] ,'all');
+	norm = @(x,y) (x/y);
+	mu1 = norm(mu1,mu_max);
+	mu2 = norm(mu2,mu_max);
+	mu3 = norm(mu3,mu_max);
+	
+	% Output
+	sig_maps = {mu1, mu2, mu3};
+end
+
+function SaveGIF (h, filename, mode, mode2)
+% GIF Exporting Function
+
+	frame = getframe(h);
+	im = frame2im(frame);
+	[imind,cm] = rgb2ind(im,256);
+	imwrite(imind,cm,filename,mode,mode2,'DelayTime',0);
+end

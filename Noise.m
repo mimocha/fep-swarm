@@ -1,4 +1,4 @@
-function omega = Noise(C, N)
+function omega = Noise(N)
 % Noise Generation Function
-	omega = randn(sqrt(1/exp(16)), [C,N]);
+	omega = sqrt(1/exp(16)) * randn([3,N]);
 end

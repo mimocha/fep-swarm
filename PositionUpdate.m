@@ -1,19 +1,15 @@
-function dPos = PositionUpdate(prec, grad, error, N)
+function a_x = PositionUpdate (grad, error, N)
 % Position Update function
 % Input: 
-%	[C,C]	: precision
-% 	[2,C,N] : gradient
-% 	[3,N]	: error
+% 	[2,3,N] : grad  : sensory gradient
+% 	[3,N]	: error : extracellular error
 % Output: 
-% 	[3,N]	: dPos
-	dPos = zeros(2,N);
-	
-	% Iterate through each cell
-	% Essentially, each cell gets its own [2,C] "gradient matrix", which
-	% modulates how the sensory error is "perceived" in each direction, thus
-	% modulating how the cell moves.
+% 	[3,N]	: a_x : Active state (cell movement)
+
+	a_x = zeros(2,N);
+	% For each cell
 	for i = 1:N
-		% [2,1]   = -([2,C,1]	  * [C,C]) * [C,1]
-		dPos(:,i) = -(grad(:,:,i) * prec) * error(:,i);
+		% [2,1]  = -[2,3,1] * [3,1]
+		a_x(:,i) = -grad(:,:,i) * error(:,i);
 	end
 end

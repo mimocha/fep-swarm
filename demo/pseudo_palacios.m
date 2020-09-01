@@ -7,7 +7,7 @@
 % Variable Definitions
 %	p_x    :: extracellular model parameter
 %	p_y    :: intracellular model parameter
-%	mu     :: brain state
+%	mu     :: internal state
 %	s_mu   :: belief -- softmax(mu)
 %	psi_x  :: position
 %	psi_y  :: chemical signal
@@ -21,8 +21,8 @@
 %% Simulation Loop
 for t = 1:tLimit/dt
 	% Sensory Inputs
-	s_y = psi_y + Noise();
-	s_x = DistanceFunc(psi_x, psi_y, N) + Noise();
+	s_y = psi_y + Noise(N);
+	s_x = DistanceFunc(psi_x, psi_y, N) + Noise(N);
 	
 	% Generative Model
 	s_mu = softmax(mu);
@@ -42,12 +42,17 @@ for t = 1:tLimit/dt
 	psi_x = psi_x + (dt .* k_a .* a_x);
 	psi_y = psi_y + (dt .* k_a .* a_y);
 	
-	% Brain State Update
-	d_mu = BrainStateFunc(p_x, p_y, eps_x, eps_y, s_mu);
+	% Internal State Update
+	d_mu = InternalStateFunc(p_x, p_y, eps_x, eps_y, s_mu);
 	mu = mu + (dt .* k_mu .* d_mu);
 end
 
 %% Helper Functions
+function omega = Noise(N)
+% Noise Generation Function
+	omega = sqrt(1/exp(16)) * randn([3,N]);
+end
+
 function s_x = DistanceFunc(psi_x, psi_y, N)
 	% Pairwise squared Euclidean distance between cells
 	dd = squareform(pdist(psi_x', 'squaredeuclidean'));
@@ -74,18 +79,12 @@ function grad = GradientFunc(psi_x, psi_y, N)
 	end
 end
 
-function d_mu = BrainStateFunc(p_x, p_y, eps_x, eps_y, s_mu, N)
-	% Inverse softmax
-	inv_mu = zeros(3,3,N);
-	for i = 1:N
-		inv_mu(:,:,i) = (diag(s_mu(:,i)) - (s_mu(:,i)*s_mu(:,i)'));
-	end
+function d_mu = InternalStateFunc(p_x, p_y, eps_x, eps_y, s_mu, N)
 	epsilon = eps_x + eps_y;
 	p_sum = p_x + p_y;
 	d_mu = zeros(C,N);
 	for i = 1:N
-		d_mu(:,i) = - p_sum * inv_mu(:,:,i) * epsilon(:,i);
+		inv_mu = (diag(s_mu(:,i)) - (s_mu(:,i)*s_mu(:,i)'));
+		d_mu(:,i) = - p_sum * inv_mu * epsilon(:,i);
 	end
 end
-
-

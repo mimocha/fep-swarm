@@ -1,16 +1,15 @@
-function S = DistSensor (pos, sec, N)
+function s = DistSensor (pos, sig, N)
 % Distance Sensor function
 % Calculate the extracellular input for each cell
 % Assuming distance function is squared Euclidean distance
 % Input: 
-%	[2,N]	: position
-% 	[C,N]	: secretion
-% 	scalar	: N
+%	[2,N]	: pos : position
+% 	[3,N]	: sig : signal
+% 	scalar	: N   : cell count
 % Output: 
-% 	[C,N]	: sensor
+% 	[3,N]	: sensor
 
-	% Spatial decay constant -- See DEM.m
-	k = 2;
+	k = 2; % Spatial decay constant -- See DEM.m from SPM12 toolkit
 	d = pdist(pos', 'squaredeuclidean');
-	S = sec * (exp(-k * squareform(d)) - eye(N));
+	s = sig * (exp(-k * squareform(d)) - eye(N));
 end

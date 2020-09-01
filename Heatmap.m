@@ -1,12 +1,13 @@
+function sig_maps = Heatmap (X, Y, psi_x, psi_y)
 % Heatmap Calculations
 % Input:
-%	[P,P]	: X | x-coordinates of gradient vector arrows, [P,P] matrix
-%	[P,P]	: Y | y-coordinates of gradient vector arrows, [P,P] matrix
-%	[2,N]	: psi_x | cell coordinates
-%	[3,N]	: psi_y | cell chemical signals
+%	[P,P]	: X : x-coordinates of gradient vector arrows, [P,P] matrix
+%	[P,P]	: Y : y-coordinates of gradient vector arrows, [P,P] matrix
+%	[2,N]	: psi_x : cell positions
+%	[3,N]	: psi_y : cell signals
 % Output:
 %	{[P*P,1], [P*P,1], [P*P,1]} : sig_maps | signal heatmap for each signal type
-function sig_maps = Heatmap (X, Y, psi_x, psi_y)
+
 	% Distance from each cell to each reference point in each dimensions
 	x_diff = repmat(psi_x(1,:), numel(X), 1) - X(:);
 	y_diff = repmat(psi_x(2,:), numel(Y), 1) - Y(:);
