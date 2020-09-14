@@ -4,16 +4,11 @@
 % Chawit Leosrisook, MSc Intelligent and Adaptive Systems
 % School of Engineering and Informatics, University of Sussex, 2020
 %
-% This file shows the full model with the pretty heatmap, which is very cool to
-% look at.
+% This file tests the trained square lattice position in its trained state. (see
+% dissertation section 3.2.2)
+% Test around with the initial parameters to see different results.
 %
-% Heatmap is pretty computationally intensive, so I recommend using 0.2 or
-% larger grid size (`hmspace = 0.2`) for fast viewing.
-% Increasing drawing intervals (`drawInt`) and step size (`dt`) also helps with
-% speed. Although the simulation will be less smooth.
-%
-% I've done my best at optimizing the code, so this should run on most
-% computers. 
+% Used in conjunction with `train_square.m`
 
 
 
@@ -25,9 +20,9 @@ clc
 GIF = false;
 filename = "output.gif";
 % Drawing interval
-drawInt = 20;
+drawInt = 50;
 % Viewport display range
-axRange = 3;
+axRange = 5;
 % Hard boundary?
 boundary = true;
 % Axis Lock?
@@ -38,15 +33,12 @@ hmSpace = 0.2;
 showMoves = false;
 
 % Number of cells / Starting States
-Nr = 9;	% Red Cells
-Ng = 6;	% Green Cells
-Nb = 1;	% Blue Cells
-N = Nr + Ng + Nb;	% Total Number of Cells
+N = 7^2; % Total Number of Cells
 
 % Time step size
-dt = 0.01;
+dt = 0.05;
 % Time Limit
-tLimit = 100;
+tLimit = 1000;
 % Start Time
 t = 0;
 
@@ -62,43 +54,40 @@ k_mu = 1; % Belief
 
 % =============== Generative Parameter ======================================= %
 % Extracellular Parameters
-p_x =  [1 1 0; ...
-		1 1 1; ...
-		0 1 1];
+p_x =  [
+    0.1006    0.2762    0.0681
+    0.4780   -0.0440    0.2913
+    0.1557    0.3133    0.0052
+];
 % Intracellular Parameters
 p_y =  [1 0 0; ...
 		0 1 0; ...
 		0 0 1];
 
 % =============== Internal States ============================================ %
-% Initial internal states
-mu = [	repmat([1;0;0],1,Nr) , ...
-		repmat([0;1;0],1,Ng) , ...
-		repmat([0;0;1],1,Nb) ];
-% Add noise to initial internal states
-mu = mu + randn(3,N)/4;
+% Bayer Filter (works only with odd square roots of N)
+mu = BayerFilter(N);
+
+% Random initialization
+% mu = randn(3,N);
 
 % =============== Belief ===================================================== %
 sigma_mu = exp(mu) ./ sum(exp(mu),1);
 
 % =============== Cell Position ============================================== %
+% Generate Square Lattice for N cells, with distance between cells of d
+d = 1;
+psi_x = SquareLattice(N, d);
+
 % Random Initial Positions
 % psi_x = rand(2,N) * axRange - axRange/2;
 
-% Cell-like Initial Position
-x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 1;
-x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 0.5;
-x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0;
-psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
-% Add noise to initial position
-psi_x = psi_x + randn(2,N)*0.2;
-
 % =============== Cell Signals =============================================== %
 % Initialize with signal emitted
-% psi_y = softmax(mu);
+psi_y = softmax(mu);
 
 % Initialize without signal
-psi_y = zeros(3,N);
+% psi_y = zeros(3,N);
 
 % =============== Sensor States ============================================== %
 s_x = zeros(3,N); % Extracellular
@@ -280,6 +269,30 @@ end
 
 
 %% Functions
+
+function mu = BayerFilter(N)
+% Bayer Filter (works only with odd square roots of N)
+	idx = reshape(mod(1:N,2), [sqrt(N),sqrt(N)]);
+	idx = idx .* repmat( mod(1:sqrt(N),2)*2+1 , sqrt(N), 1);
+	idx(idx==0) = 2;
+	mu = zeros(3,N);
+	for i = 1:N
+		mu(idx(i),i) = 1;
+	end
+end
+
+function pos = SquareLattice(N, d)
+% Generate positions in a square lattice, where each cell is atleast a distance
+% of `d` apart (by the edge). Requires square number of cells, `N`.
+	s = sqrt(N);
+	range = 0 : d : d*s-d;
+	[X,Y] = meshgrid(range);
+	
+	center = mean(range);
+	X = X - center;
+	Y = Y - center;
+	pos = [X(:),Y(:)]';
+end
 
 function omega = Noise(N)
 % Noise Generation Function

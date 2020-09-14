@@ -1,5 +1,12 @@
 function s = DistSensor (pos, sig, N)
 % Distance Sensor function
+%
+% For the MSc Dissertation:
+% A Free Energy Principle approach to modelling swarm behaviors
+% Chawit Leosrisook, MSc Intelligent and Adaptive Systems
+% School of Engineering and Informatics, University of Sussex, 2020
+%
+%
 % Calculate the extracellular input for each cell
 % Assuming distance function is squared Euclidean distance
 % Input: 

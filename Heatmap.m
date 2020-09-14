@@ -1,5 +1,12 @@
 function sig_maps = Heatmap (X, Y, psi_x, psi_y)
 % Heatmap Calculations
+%
+% For the MSc Dissertation:
+% A Free Energy Principle approach to modelling swarm behaviors
+% Chawit Leosrisook, MSc Intelligent and Adaptive Systems
+% School of Engineering and Informatics, University of Sussex, 2020
+%
+%
 % Input:
 %	[P,P]	: X : x-coordinates of gradient vector arrows, [P,P] matrix
 %	[P,P]	: Y : y-coordinates of gradient vector arrows, [P,P] matrix

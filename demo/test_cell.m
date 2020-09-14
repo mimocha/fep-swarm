@@ -4,16 +4,11 @@
 % Chawit Leosrisook, MSc Intelligent and Adaptive Systems
 % School of Engineering and Informatics, University of Sussex, 2020
 %
-% This file shows the full model with the pretty heatmap, which is very cool to
-% look at.
+% This file tests the trained cell-like position in its trained state. (see
+% dissertation section 3.2.1)
+% Test around with the initial parameters to see different results.
 %
-% Heatmap is pretty computationally intensive, so I recommend using 0.2 or
-% larger grid size (`hmspace = 0.2`) for fast viewing.
-% Increasing drawing intervals (`drawInt`) and step size (`dt`) also helps with
-% speed. Although the simulation will be less smooth.
-%
-% I've done my best at optimizing the code, so this should run on most
-% computers. 
+% Used in conjunction with `train_cell.m`
 
 
 
@@ -25,7 +20,7 @@ clc
 GIF = false;
 filename = "output.gif";
 % Drawing interval
-drawInt = 20;
+drawInt = 10;
 % Viewport display range
 axRange = 3;
 % Hard boundary?
@@ -46,7 +41,7 @@ N = Nr + Ng + Nb;	% Total Number of Cells
 % Time step size
 dt = 0.01;
 % Time Limit
-tLimit = 100;
+tLimit = 200;
 % Start Time
 t = 0;
 
@@ -62,9 +57,11 @@ k_mu = 1; % Belief
 
 % =============== Generative Parameter ======================================= %
 % Extracellular Parameters
-p_x =  [1 1 0; ...
-		1 1 1; ...
-		0 1 1];
+p_x =  [
+   -0.4771    0.8801    1.2905
+   -1.5822    1.3211    3.7720
+   -0.7059    1.1955    1.1954
+];
 % Intracellular Parameters
 p_y =  [1 0 0; ...
 		0 1 0; ...
@@ -76,7 +73,7 @@ mu = [	repmat([1;0;0],1,Nr) , ...
 		repmat([0;1;0],1,Ng) , ...
 		repmat([0;0;1],1,Nb) ];
 % Add noise to initial internal states
-mu = mu + randn(3,N)/4;
+% mu = mu + randn(3,N)/4;
 
 % =============== Belief ===================================================== %
 sigma_mu = exp(mu) ./ sum(exp(mu),1);
@@ -86,19 +83,19 @@ sigma_mu = exp(mu) ./ sum(exp(mu),1);
 % psi_x = rand(2,N) * axRange - axRange/2;
 
 % Cell-like Initial Position
-x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 1;
+x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 1.5;
 x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 0.5;
 x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0;
 psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
 % Add noise to initial position
-psi_x = psi_x + randn(2,N)*0.2;
+% psi_x = psi_x + randn(2,N)*0.2;
 
 % =============== Cell Signals =============================================== %
 % Initialize with signal emitted
-% psi_y = softmax(mu);
+psi_y = softmax(mu);
 
 % Initialize without signal
-psi_y = zeros(3,N);
+% psi_y = zeros(3,N);
 
 % =============== Sensor States ============================================== %
 s_x = zeros(3,N); % Extracellular

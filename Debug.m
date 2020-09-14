@@ -1,7 +1,8 @@
+function Debug(varargin)
 % Debug variable console print
 % Input String + Variable pair
 % e.g.: Debug("Variable Name", var_name, ...)
-function Debug(varargin)
+
 	if length(varargin) > 1
 		fprintf("\n=========\n")
 	end

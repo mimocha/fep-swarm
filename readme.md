@@ -1,9 +1,9 @@
-# Swarm dynamics based on Markov blankets and free energy minimization
+# A Free Energy Principle approach to modelling swarm behaviors
 
-MSc Intelligent and Adaptive Systems Dissertation, Chawit Leosrisook 2019-2020.
+This repository contains the source code to the MSc dissertation *"A Free Energy Principle approach to modelling swarm behaviors"*, presented for the degree of
+MSc Intelligent and Adaptive Systems at the University of Sussex.
 
-Based on the papers:
-
-* Palacios, E. R., Razi, A., Parr, T., Kirchhoff, M., & Friston, K. (2020). On Markov blankets and hierarchical self-organisation. Journal of Theoretical Biology, 486, 110089.
-
-* Bogacz, R. (2017). A tutorial on the free-energy framework for modelling perception and learning. Journal of mathematical psychology, 76, 198-211.
+Chawit Leosrisook
+School of Engineering and Informatics
+University of Sussex
+2019-2020

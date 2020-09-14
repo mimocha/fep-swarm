@@ -1,25 +1,36 @@
+%% Scatter Plot Demo
+% For the MSc Dissertation:
+% A Free Energy Principle approach to modelling swarm behaviors
+% Chawit Leosrisook, MSc Intelligent and Adaptive Systems
+% School of Engineering and Informatics, University of Sussex, 2020
+%
+% This file provides the full simulation, showing only the color-coded scatter
+% plot. Useful if you don't want to see the heatmaps.
+
+
+
 %% Simulation parameters
 clear
 clc
 
-% Save GIF?
+% Save GIF video?
 GIF = false;
-filename = 'output.gif';
+filename = "output.gif";
 % Drawing interval
 drawInt = 20;
-% Axis display range
-axRange = 5;
+% Viewport display range
+axRange = 3;
 % Hard boundary?
 boundary = true;
 % Axis Lock?
 axLock = false;
-% Gradient Quiver Spacing
-gqSpace = 0.5;
+% Draw cell movement vectors?
+showMoves = true;
 
 % Number of cells / Starting States
-Nr = 27; % Red
-Ng = 18; % Green
-Nb = 9; % Blue
+Nr = 25; % Red
+Ng = 20; % Green
+Nb = 5; % Blue
 N = Nr + Ng + Nb;
 
 % Time step size
@@ -52,7 +63,7 @@ mu = [	repmat([1;0;0],1,Nr) , ...
 		repmat([0;1;0],1,Ng) , ...
 		repmat([0;0;1],1,Nb) ];
 % Add noise to initial internal states
-mu = mu / 2 + randn(3,N)/8;
+mu = mu + randn(3,N)/4;
 
 % =============== Belief ===================================================== %
 sigma_mu = exp(mu) ./ sum(exp(mu),1); % Beliefs
@@ -62,15 +73,19 @@ sigma_mu = exp(mu) ./ sum(exp(mu),1); % Beliefs
 % psi_x = rand(2,N) * axRange - axRange/2;
 
 % Cell-like Initial Position
-x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 2.0;
-x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1.25;
+x1 = [cos(0: 2*pi/Nr :2*pi) ; sin(0: 2*pi/Nr :2*pi)] * 1.5;
+x2 = [cos(0: 2*pi/Ng :2*pi) ; sin(0: 2*pi/Ng :2*pi)] * 1;
 x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0.5;
 psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
 % Add noise to initial position
-% psi_x = psi_x + randn(2,N)*0.2;
+psi_x = psi_x + randn(2,N)*0.2;
 
 % =============== Cell Signals =============================================== %
-psi_y = softmax(mu);
+% Initialize with signal emitted
+% psi_y = softmax(mu);
+
+% Initialize without signal
+psi_y = zeros(3,N);
 
 % =============== Sensor States ============================================== %
 s_x = zeros(3,N); % Extracellular
@@ -87,19 +102,24 @@ epsilon_y = zeros(3,N); % Intracellular
 
 
 %% Figure setup
-figure(1)
+fig = figure(1);
 clf
 cmap = sigma_mu';
 
 % Scatter Plot
 hmain = scatter(psi_x(1,:), psi_x(2,:), 100, cmap, 'filled', ...
 	'MarkerEdgeColor', 'flat');
-ht = title(sprintf("N: %d | dt: %.2f | Time: 0.00", N, dt));
+titletext = ...
+	sprintf("N: %d | k_a: %.2f | k_\\mu: %.2f | dt: %.2f | Time: %.2f", ...
+		N, k_a, k_mu, dt, 0);
+ht = title(titletext);
 grid on
 hold on
 xticks(-axRange:axRange)
 yticks(-axRange:axRange)
-hquiv = quiver(psi_x(1,:), psi_x(2,:), zeros(1,N), zeros(1,N), 'k');
+if showMoves
+	hquiv = quiver(psi_x(1,:), psi_x(2,:), zeros(1,N), zeros(1,N), 'k');
+end
 
 % Axis Tracking variables
 axT = axRange;
@@ -120,7 +140,6 @@ axis([axL axR axB axT])
 fprintf("Ready. Press any key to begin ...\n")
 pause
 
-% If saving GIF
 if GIF
 	fig = gcf;
 	SaveGIF(fig, filename, 'LoopCount', inf);
@@ -142,8 +161,8 @@ for t = 1:tLimit/dt
 	
 	% 4. Calculate Action
 	grad = SensorGrad(psi_x, psi_y, N);
-	a_x = k_a * PositionUpdate(grad, epsilon_x, N);
-	a_y = k_a * -epsilon_y;
+	a_x = -k_a * PositionUpdate(grad, epsilon_x, N);
+	a_y = -k_a * epsilon_y;
 	
 	% 5. Update World
 	psi_x = Integrate(psi_x, a_x);
@@ -160,13 +179,15 @@ for t = 1:tLimit/dt
 	d_mu = k_mu * d_mu;
 	mu = Integrate(mu, d_mu);
 	
-	% Draw on intervals only
-	if mod(t,drawInt) ~= 0
-		continue
-	end
+	
 	
 	%% Plot
 	try
+		% Draw on intervals only
+		if mod(t,drawInt) ~= 0
+			continue
+		end
+		
 		% Lock ensemble center to axis center
 		if axLock
 			% Position change relative to overall cluster movement
@@ -177,15 +198,18 @@ for t = 1:tLimit/dt
 		% Update Cell Scatter Plot
 		SetAll(hmain, {'XData','YData','CData'}, ...
 			{psi_x(1,:),psi_x(2,:),sigma_mu'})
-		ht.String = sprintf("N: %d | dt: %.2f | Time: %.2f", N, dt, t*dt);
+		titletext = sprintf("N: %d | k_a: %.2f | k_\\mu: %.2f | dt: %.2f | Time: %.2f", ...
+			N, k_a, k_mu, dt, t*dt);
+		ht.String = titletext;
 		
 		% Update Cell Quiver Arrows
+		if showMoves
 		SetAll(hquiv, {'XData','YData','UData','VData'}, ...
 			{psi_x(1,:),psi_x(2,:),a_x(1,:),a_x(2,:)})
+		end
 		
 		drawnow
 		
-		% Save GIF
 		if GIF
 			SaveGIF(fig, filename, 'WriteMode', 'Append');
 		end
@@ -267,8 +291,8 @@ function a_x = PositionUpdate (grad, error, N)
 	a_x = zeros(2,N);
 	% For each cell
 	for i = 1:N
-		% [2,1]  = -[2,3,1] * [3,1]
-		a_x(:,i) = -grad(:,:,i) * error(:,i);
+		% [2,1]  = [2,3,1] * [3,1]
+		a_x(:,i) = grad(:,:,i) * error(:,i);
 	end
 end
 
@@ -285,14 +309,11 @@ function d_mu = InternalStatesUpdate (p_x, p_y, eps_x, eps_y, s_mu, N)
 % Output: 
 % 	[3,N]	: d_mu  : internal states update
 	
-	% d_mu = -(Px + Py) * sigma'(mu) * (eps_x + eps_y)
-	error = eps_x + eps_y;
-	params = p_x + p_y;
+	% d_mu = k_mu * sigma'(mu) * (p_x * eps_x + p_y * eps_y)
 	d_mu = zeros(3,N);
 	for i = 1:N
-		% Inverse softmax
 		invSoftmax = (diag(s_mu(:,i)) - (s_mu(:,i)*s_mu(:,i)'));
-		d_mu(:,i) = - params * invSoftmax * error(:,i);
+		d_mu(:,i) = invSoftmax * (p_x * eps_x(:,i) + p_y * eps_y(:,i));
 	end
 end
 
