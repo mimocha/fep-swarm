@@ -1,12 +1,24 @@
 # A Free Energy Principle approach to modelling swarm behaviors
 
-#### Contents
+*Note: clone single branch to avoid downloading unnecessary asset files (GIFs and Images)*
+
+```Bash
+git clone --single-branch --branch master https://github.com/mimocha/fep-swarm.git
+```
+
+---
+
+### Contents
 
 1. [**About**](#about)
 2. [**GIFs**](#here-are-some-cool-gifs)
 3. [**Usage**](#usage)
 4. [**Simulation Parameters**](#simulation-parameters)
 5. [**Cell Properties**](#cell-properties)
+
+---
+
+## About
 
 ```
 This repository contains the source code to the MSc dissertation 
@@ -20,10 +32,6 @@ University of Sussex
 2019-2020
 ```
 
----
-
-## About
-
 This project applies the Free Energy Principle to modelling self-organizing swarms, largely based on the paper [*"On Markov blankets and hierarchical self-organisation"*, Palacios et al. (2020)](https://doi.org/10.1016/j.jtbi.2019.110089)
 
 This work reimplements the model presented by Palacios from scratch, with the full codes provided in this repository. Here are some examples of the simulation in action.
@@ -33,7 +41,7 @@ This work reimplements the model presented by Palacios from scratch, with the fu
 </p>
 
 <p align="center">
-	<img src="https://github.com/mimocha/fep-swarm/blob/assets/img/heatmap.png" alt="Sample Simulation Setup" width="600"/>
+	<img src="https://github.com/mimocha/fep-swarm/blob/assets/img/heatmap.jpg" alt="Sample Simulation Setup" width="600"/>
 </p>
 
 The top-left box shows the 2D particle agents, color coded based on their "beliefs". These beliefs are about what type of agent they are; red, green or blue.
@@ -45,7 +53,7 @@ The other three boxes shows a heatmap of signals being outputted by each type of
 
 Note that the signals roughly corresponds to the location of each agent, but doesn't match perfectly (signals seems mixed). This is because the agents have "mixed beliefs" which changes over time. This is easier to understand when you see them in action below. (Also, see the paper itself.)
 
-#### Here are some cool GIFs.
+### Here are some cool GIFs.
 
 Things get quite interesting with larger number of agents.  
 They're quite fun to play around with, so I provide a lot of options.
@@ -63,17 +71,16 @@ They're quite fun to play around with, so I provide a lot of options.
 
 ## Usage
 
-Files under the `demo` directories are standalone files that should run on all versions of MATLAB. These can run on their own, as-is, so treat it like a quick start.
+Files under the `demo/` directory are standalone files that should run on all versions of MATLAB. These should run on their own, as-is, so treat them like a quick start.
 
-The `main.m` file (inside `src/`) is the "main test-bench" for when you want to change things around. (Nothing stops you from changing the demo files, but those replicates the experiments in my dissertation.)
-
-The helper functions are split into its own files, so you can use the MATLAB `help <function>` to get a quick explanation for each file.
+The `main.m` file (under `src/`) is the "main test-bench" for when you want to change things around. *(Nothing stops you from changing the demo files, but those replicates the experiments in my dissertation.)*
+The helper functions are split into its own files with some docs, so you can use the MATLAB `help <function>` to get a quick explanation.
 
 I've set the scripts in a way that the **simulation parameters** and initial **cell properties** are in their own sections. Change those as you see fit. There shouldn't be anything else to change further down inside the code, unless you are about to change the model itself.
 
 ---
 
-#### Simulation Parameters:
+### Simulation Parameters:
 
 Save GIF of the current sim: `GIF = <true/false>`  
 Filename (and location) of the GIF: `filename = "..."`
@@ -104,7 +111,7 @@ Filename (and location) of the GIF: `filename = "..."`
 
 ---
 
-#### Cell Properties:
+### Cell Properties:
 
 `k_a` -- Action "learning rate". Decrease to slow down agent movement.  
 `k_mu` -- Inference "learning rate". Decrese to slow down agent inference (color change rate).
