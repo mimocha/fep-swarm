@@ -137,7 +137,7 @@ Filename (and location) of the GIF: `filename = "..."`
 ---
 
 <p align="center"> 
-	<a href="#a-free-energy-principle-approach-to-modelling-swarm-behaviors"> 
+	<a href="#top"> 
 		<code>Back to top</code>
 	</a>
 </p>
