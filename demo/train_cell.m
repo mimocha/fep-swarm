@@ -38,6 +38,9 @@ t = 0;
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
 
+% Anonymous softmax function
+Softmax = @(x) exp(x)./sum(exp(x),1);
+
 % Index of cells to print interesting variables to console, during training
 idx = [1, 2, floor(N/2), ceil(N/2), N-1, N];
 
@@ -60,7 +63,7 @@ mu = [	repmat([1;0;0],1,Nr) , ...
 		repmat([0;0;1],1,Nb) ];
 	
 % =============== Belief ===================================================== %
-sigma_mu = exp(mu) ./ sum(exp(mu),1);
+sigma_mu = Softmax(mu);
 
 % =============== Cell Position ============================================== %
 
@@ -71,7 +74,7 @@ x3 = [cos(0: 2*pi/Nb :2*pi) ; sin(0: 2*pi/Nb :2*pi)] * 0;
 psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
 
 % =============== Cell Signals =============================================== %
-psi_y = softmax(mu);
+psi_y = Softmax(mu);
 
 % =============== Sensor States ============================================== %
 s_x = zeros(3,N); % Extracellular
@@ -126,7 +129,7 @@ for t = 1:tLimit/dt
 	s_y = psi_y + Noise(N);
 	
 	% 2. Generative Model
-	sigma_mu = exp(mu) ./ sum(exp(mu),1);
+	sigma_mu = Softmax(mu);
 	g_x = (p_x * sigma_mu);
 	g_y = (p_y * sigma_mu);
 	

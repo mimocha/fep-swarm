@@ -36,6 +36,9 @@ t = 0;
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
 
+% Anonymous softmax function
+Softmax = @(x) exp(x)./sum(exp(x),1);
+
 % Index of cells to print interesting variables to console, during training
 idx = [1, 2, floor(N/2), ceil(N/2), N-1, N];
 
@@ -55,7 +58,7 @@ p_y = rand(3);
 mu = BayerFilter(N);
 	
 % =============== Belief ===================================================== %
-sigma_mu = exp(mu) ./ sum(exp(mu),1);
+sigma_mu = Softmax(mu);
 
 % =============== Cell Position ============================================== %
 % Generate Square Lattice for N cells, with distance between cells of d
@@ -63,7 +66,7 @@ d = 1;
 psi_x = SquareLattice(N, d);
 
 % =============== Cell Signals =============================================== %
-psi_y = softmax(mu);
+psi_y = Softmax(mu);
 
 % =============== Sensor States ============================================== %
 s_x = zeros(3,N); % Extracellular
@@ -118,7 +121,7 @@ for t = 1:tLimit/dt
 	s_y = psi_y + Noise(N);
 	
 	% 2. Generative Model
-	sigma_mu = exp(mu) ./ sum(exp(mu),1);
+	sigma_mu = Softmax(mu);
 	g_x = (p_x * sigma_mu);
 	g_y = (p_y * sigma_mu);
 	

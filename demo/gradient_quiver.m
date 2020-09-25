@@ -50,6 +50,8 @@ t = 0;
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
 
+% Anonymous softmax function
+Softmax = @(x) exp(x)./sum(exp(x),1);
 
 
 %% Cell properties
@@ -76,7 +78,7 @@ mu = [	repmat([1;0;0],1,Nr) , ...
 mu = mu + randn(3,N)/4;
 
 % =============== Belief ===================================================== %
-sigma_mu = exp(mu) ./ sum(exp(mu),1);
+sigma_mu = Softmax(mu);
 
 % =============== Cell Position ============================================== %
 % Random Initial Positions
@@ -92,7 +94,7 @@ psi_x = psi_x + randn(2,N)*0.2;
 
 % =============== Cell Signals =============================================== %
 % Initialize with signal emitted
-% psi_y = softmax(mu);
+% psi_y = Softmax(mu);
 
 % Initialize without signal
 psi_y = zeros(3,N);
@@ -116,9 +118,9 @@ R = -axRange:gqSpace:axRange;
 [X,Y] = meshgrid(R, R);
 
 % Generative model g(mu_i)
-G = {repmat(reshape(p_x*softmax([1,0,0]'), [1,1,3]), size(X)), ...
-	 repmat(reshape(p_x*softmax([0,1,0]'), [1,1,3]), size(X)), ...
-	 repmat(reshape(p_x*softmax([0,0,1]'), [1,1,3]), size(X))};
+G = {repmat(reshape(p_x*Softmax([1,0,0]'), [1,1,3]), size(X)), ...
+	 repmat(reshape(p_x*Softmax([0,1,0]'), [1,1,3]), size(X)), ...
+	 repmat(reshape(p_x*Softmax([0,0,1]'), [1,1,3]), size(X))};
 
 [U,V] = GradientMap (G, X, Y, psi_x, psi_y);
 
@@ -178,7 +180,7 @@ for t = 1:tLimit/dt
 	s_y = psi_y + Noise(N);
 	
 	% 2. Generative Model
-	sigma_mu = exp(mu) ./ sum(exp(mu),1); % softmax
+	sigma_mu = Softmax(mu);
 	g_x = (p_x * sigma_mu);
 	g_y = (p_y * sigma_mu);
 	

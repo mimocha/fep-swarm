@@ -48,6 +48,8 @@ t = 0;
 % Anonymous dt Update function
 Integrate = @(x,dx) x + (dt.*dx);
 
+% Anonymous softmax function
+Softmax = @(x) exp(x)./sum(exp(x),1);
 
 
 %% Cell properties
@@ -76,7 +78,7 @@ mu = [	repmat([1;0;0],1,Nr) , ...
 % mu = mu + randn(3,N)/4;
 
 % =============== Belief ===================================================== %
-sigma_mu = exp(mu) ./ sum(exp(mu),1);
+sigma_mu = Softmax(mu);
 
 % =============== Cell Position ============================================== %
 % Random Initial Positions
@@ -92,7 +94,7 @@ psi_x = [x1(:,1:end-1), x2(:,1:end-1), x3(:,1:end-1)];
 
 % =============== Cell Signals =============================================== %
 % Initialize with signal emitted
-psi_y = softmax(mu);
+psi_y = Softmax(mu);
 
 % Initialize without signal
 % psi_y = zeros(3,N);
@@ -195,7 +197,7 @@ for t = 1:tLimit/dt
 	s_y = psi_y + Noise(N);
 	
 	% 2. Generative Model
-	sigma_mu = exp(mu) ./ sum(exp(mu),1); % softmax
+	sigma_mu = Softmax(mu);
 	g_x = (p_x * sigma_mu);
 	g_y = (p_y * sigma_mu);
 	
