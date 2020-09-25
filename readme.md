@@ -32,7 +32,9 @@ University of Sussex
 2019-2020
 ```
 
-This project applies the Free Energy Principle to modelling self-organizing swarms, largely based on the paper [*"On Markov blankets and hierarchical self-organisation"*, Palacios et al. (2020)](https://doi.org/10.1016/j.jtbi.2019.110089)
+This project applies the Free Energy Principle to modelling self-organizing swarms, largely based on the paper [*"On Markov blankets and hierarchical self-organisation"*, Palacios et al. (2020)](https://doi.org/10.1016/j.jtbi.2019.110089).
+
+[**Full dissertation**](https://drive.google.com/uc?export=download&id=1I8faSJduRKPwK9qPP3D17HGjeFKaGbSm)
 
 This work reimplements the model presented by Palacios from scratch, with the full codes provided in this repository. Here are some examples of the simulation in action.
 
