@@ -2,9 +2,19 @@
 
 *Note: clone single branch to avoid downloading unnecessary asset files (GIFs and Images)*
 
-```Bash
+<p>
+<img src="https://via.placeholder.com/15/ffaa00/000000?text=+" width="15px"/>
+<code>
 git clone --single-branch --branch master https://github.com/mimocha/fep-swarm.git
-```
+</code>
+</p>
+
+<p>
+<img src="https://via.placeholder.com/15/ff2020/000000?text=+" width="15px"/>
+<a href="https://drive.google.com/uc?export=download&id=1I8faSJduRKPwK9qPP3D17HGjeFKaGbSm">
+	<code>Link to full dissertation (pdf)</code>
+</a>
+</p>
 
 ---
 
@@ -33,8 +43,6 @@ University of Sussex
 ```
 
 This project applies the Free Energy Principle to modelling self-organizing swarms, largely based on the paper [*"On Markov blankets and hierarchical self-organisation"*, Palacios et al. (2020)](https://doi.org/10.1016/j.jtbi.2019.110089).
-
-[**Full dissertation**](https://drive.google.com/uc?export=download&id=1I8faSJduRKPwK9qPP3D17HGjeFKaGbSm)
 
 This work reimplements the model presented by Palacios from scratch, with the full codes provided in this repository. Here are some examples of the simulation in action.
 
